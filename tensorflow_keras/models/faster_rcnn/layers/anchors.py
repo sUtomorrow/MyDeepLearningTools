@@ -2,7 +2,6 @@
 # @Time     : 5/25/19 10:42 AM
 # @Author   : lty
 # @File     : anchors
-import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 
