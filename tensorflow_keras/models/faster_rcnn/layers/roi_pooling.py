@@ -33,11 +33,12 @@ class RoiPooling(keras.layers.Layer):
         feature_map_h = tf.shape(feature_map)[0]
         feature_map_w = tf.shape(feature_map)[1]
         feature_map_c = tf.shape(feature_map)[2]
-        # roi = tf.cast(roi, tf.int32)
-        h_start = tf.cast(tf.cast(feature_map_h, tf.float32) * roi[0], tf.int32)
-        w_start = tf.cast(tf.cast(feature_map_w, tf.float32) * roi[1], tf.int32)
-        h_end   = tf.cast(tf.cast(feature_map_h, tf.float32) * roi[2], tf.int32)
-        w_end   = tf.cast(tf.cast(feature_map_w, tf.float32) * roi[3], tf.int32)
+
+
+        w_start = tf.maximum(tf.cast(tf.round(roi[0]), tf.int32), tf.cast(0, tf.int32))
+        h_start = tf.maximum(tf.cast(tf.round(roi[1]), tf.int32), tf.cast(0, tf.int32))
+        w_end   = tf.minimum(tf.cast(tf.round(roi[2]), tf.int32), feature_map_w)
+        h_end   = tf.minimum(tf.cast(tf.round(roi[3]), tf.int32), feature_map_h)
 
         roi_region = feature_map[h_start : h_end, w_start : w_end, :]
 
@@ -58,7 +59,9 @@ class RoiPooling(keras.layers.Layer):
         return pooling_result
 
     def call(self, inputs, **kwargs):
-
+        '''
+        roi should be [x1, y1, x2, y2], shape: [batch_size, roi_number, 4]
+        '''
         feature_map = inputs[0]
         rois = inputs[1]
         batch_size = tf.shape(feature_map)[0]
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     print(f"feature_maps_np.shape = {feature_maps_np.shape}")
     # Create batch size
     roiss_tf = tf.placeholder(tf.float32, shape=(None, n_rois, 4))
-    roiss_np = np.asarray([[[0.5, 0.2, 0.7, 0.4], [0.0, 0.0, 1.0, 1.0]]], dtype='float32')
+    roiss_np = np.asarray([[[50., 40., 70., 80.], [0.0, 0.0, 100.0, 200.0]]], dtype='float32')
     roiss_np = np.tile(roiss_np, (batch_size, 1, 1))
     print(f"roiss_np.shape = {roiss_np.shape}")
     # Create layer
@@ -111,9 +114,8 @@ if __name__ == '__main__':
     # result should be
     # feature_maps_np.shape = (1000, 200, 100, 20)
     # roiss_np.shape = (1000, 2, 4)
-    # feature_map_shape (None, 200, 100, 20)
-    # roi_shape (None, 2, 4)
     # output shape of layer call = (?, 2, 3, 7, 20)
+    # result.shape = (1000, 2, 3, 7, 20)
     # first  roi embedding=
     # [[1. 1. 1. 1. 1. 1. 1.]
     #  [1. 1. 1. 1. 1. 1. 1.]
