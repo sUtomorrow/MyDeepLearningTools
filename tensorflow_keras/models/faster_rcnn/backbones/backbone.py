@@ -12,7 +12,7 @@ class Backbone(object):
         self.validate()
 
     def build_network(self):
-        """ built backbone network and set self.outputs
+        """ built backbone network and set self.outputs and self.feature_level
         """
         raise NotImplementedError('build_network method not implemented')
 
@@ -40,7 +40,12 @@ class Backbone(object):
     def download_weights(self):
         """ Download model weights and returns path to weights file.
         """
-        raise NotImplementedError('download_imagenet method not implemented.')
+        raise NotImplementedError('download_weights method not implemented.')
+
+    def load_weights(self, weight_path):
+        """ load model weights
+        """
+        raise NotImplementedError('load_weights method not implemented.')
 
     def validate(self):
         """ Checks whether the backbone string is correct.

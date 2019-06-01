@@ -4,3 +4,4 @@
 # @File     : __init__
 
 from .roi_pooling import RoiPooling
+from .anchors import PriorAnchor

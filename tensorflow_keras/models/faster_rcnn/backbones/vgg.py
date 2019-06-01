@@ -50,6 +50,9 @@ class VggBackbone(Backbone):
         if self.backbone_name not in allowed_backbone_names:
             raise ValueError('Backbone (\'{}\') not in allowed backbones ({}).'.format(self.backbone_name, allowed_backbone_names))
 
+    def load_weights(self, weight_path):
+        self.model.load_weights(weight_path)
+
     def preprocess_image(self, inputs):
         if self.backbone_name == 'vgg16':
             return vgg16.preprocess_input(inputs)
