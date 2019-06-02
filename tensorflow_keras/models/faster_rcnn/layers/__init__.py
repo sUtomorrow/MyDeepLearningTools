@@ -5,3 +5,4 @@
 
 from .roi_pooling import RoiPooling
 from .anchors import PriorAnchor
+from.bounding_box import BoundingBox

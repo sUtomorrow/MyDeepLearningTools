@@ -31,6 +31,9 @@ def RegionProposalNet(inputs, prior_anchor, filter_num, anchor_num):
     regression = keras.layers.Conv2D(4 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same', )(inputs)
     regression = keras.layers.Reshape((-1, 4))(regression)
 
+    bbox = layers.BoundingBox()([prior_anchor, regression])
+    
+
 
 
 def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_params=default_anchor_params, config=default_config):
