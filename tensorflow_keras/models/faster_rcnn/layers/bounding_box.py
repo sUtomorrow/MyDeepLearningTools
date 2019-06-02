@@ -11,7 +11,7 @@ class BoundingBox(keras.layers.Layer):
 
         super(BoundingBox, self).__init__(**kwargs)
 
-    def call(self, inputs, *args, **kwargs):
+    def call(self, inputs, **kwargs):
         """ prior anchor should be [x1, y1, x2, y2],
             regression should be [tx, ty, tw, th]
 

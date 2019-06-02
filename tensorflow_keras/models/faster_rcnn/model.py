@@ -3,7 +3,7 @@
 # @Author   : lty
 # @File     : model
 
-
+import tensorflow as tf
 import tensorflow.keras as keras
 
 from .backbones import VggBackbone
@@ -15,12 +15,14 @@ default_anchor_params = {
 }
 
 default_config = {
-    'RoiPoolingW': 6,
-    'RoiPoolingH': 6,
+    'RoiPoolingW'          : 6,
+    'RoiPoolingH'          : 6,
+    'BboxProposalNum'      : 300,
+    'RegionProposalFilters': 512,
 }
 
 
-def RegionProposalNet(inputs, prior_anchor, filter_num, anchor_num):
+def RegionProposalNet(inputs, image, bbox_num, prior_anchor, filter_num, anchor_num):
 
     inputs = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(inputs)
 
@@ -32,7 +34,12 @@ def RegionProposalNet(inputs, prior_anchor, filter_num, anchor_num):
     regression = keras.layers.Reshape((-1, 4))(regression)
 
     bbox = layers.BoundingBox()([prior_anchor, regression])
-    
+
+    bbox = layers.BoxClip()([image, bbox])
+
+    proposal_bbox = layers.BboxProposal(bbox_num)([classification, bbox])
+
+    return proposal_bbox
 
 
 
@@ -45,10 +52,14 @@ def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_par
 
     backbone_outputs = backbone.get_outputs()
     feature_level = backbone.get_feature_level()
+    anchor_num = len(default_anchor_params['size']) * len(default_anchor_params['ratio'])
 
     prior_anchor = layers.PriorAnchor(feature_level, anchor_params=anchor_params)(backbone_outputs)
 
-    roi_pooling = layers.RoiPooling(pooling_h=config['RoiPoolingH'], pooling_w=config['RoiPoolingW'])([backbone_outputs, prior_anchor])
+    proposal_bbox = RegionProposalNet(backbone_outputs, inputs, config['BboxProposalNum'], prior_anchor,
+                                      config['RegionProposalFilters'], anchor_num)
+
+    roi_pooling = layers.RoiPooling(pooling_h=config['RoiPoolingH'], pooling_w=config['RoiPoolingW'])([backbone_outputs, proposal_bbox])
 
 
 
