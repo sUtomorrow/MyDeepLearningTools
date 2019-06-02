@@ -72,8 +72,9 @@ class RoiPooling(keras.layers.Layer):
 
 
 if __name__ == '__main__':
-    '''test the RoiPooling layer
-    '''
+    """
+    test the RoiPooling layer
+    """
     import os
     import numpy as np
 

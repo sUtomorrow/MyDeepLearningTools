@@ -25,11 +25,11 @@ def RegionProposalNet(inputs, prior_anchor, filter_num, anchor_num):
     inputs = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(inputs)
 
     classification = keras.layers.Conv2D(2 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same')(inputs)
-    classification = keras.layers.Reshape((-1, anchor_num, 2))(classification)
+    classification = keras.layers.Reshape((-1, 2))(classification)
     classification = keras.layers.Activation('softmax', axis=-1)(classification)
 
     regression = keras.layers.Conv2D(4 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same', )(inputs)
-    regression = keras.layers.Reshape((-1, anchor_num, 4))(regression)
+    regression = keras.layers.Reshape((-1, 4))(regression)
 
 
 

@@ -4,6 +4,7 @@
 # @File     : anchors
 import tensorflow as tf
 import tensorflow.keras as keras
+import numpy as np
 
 default_anchor_params = {
     'size': [4, 8, 16],
@@ -49,19 +50,19 @@ class PriorAnchor(keras.layers.Layer):
         anchor_shift_tensor = tf.tile(self.anchor_shift_tensor, [batch_size, input_h, input_w, 1, 1])
 
         prior_anchor = tf.add(point_grid, anchor_shift_tensor)
-        prior_anchor = prior_anchor / tf.cast(2 ** self.feature_level, tf.float32)
+        # prior_anchor = prior_anchor / tf.cast(2 ** self.feature_level, tf.float32)
 
         # anchor box coordinate should be [x1, y1, x2, y2], with shape: [batch_size, point_num, anchor_num, 4]
-        return tf.reshape(prior_anchor, [batch_size, -1, self.anchor_num, 4])
+        return tf.reshape(prior_anchor, [batch_size, -1, 4])
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], None, self.anchor_num, 4)
+        return (input_shape[0], None, 4)
 
 
 if __name__ == '__main__':
-    '''
+    """
     test the ProirAnchor layer
-    '''
+    """
     import os
     import numpy as np
 
@@ -73,28 +74,25 @@ if __name__ == '__main__':
 
     with tf.Session() as session:
         feature_maps_tf = tf.placeholder(tf.float32, shape=feature_maps_shape)
-        priorAnchor = PriorAnchor(0, anchor_param=anchor_params)(feature_maps_tf)
-        result = session.run(priorAnchor, feed_dict={feature_maps_tf: feature_maps})
+        prior_anchor = PriorAnchor(0, anchor_param=anchor_params)(feature_maps_tf)
+        result = session.run(prior_anchor, feed_dict={feature_maps_tf: feature_maps})
 
     print(result[0])
 
     # output should be:
-    # [[[-0.91421354 -2.328427    1.9142135   3.328427  ]
-    #   [-1.5        -1.5         2.5         2.5       ]
-    #   [-2.328427   -5.156854    3.328427    6.156854  ]
-    #   [-3.5        -3.5         4.5         4.5       ]]
-    #
-    #  [[ 0.08578646 -2.328427    2.9142137   3.328427  ]
-    #   [-0.5        -1.5         3.5         2.5       ]
-    #   [-1.3284271  -5.156854    4.3284273   6.156854  ]
-    #   [-2.5        -3.5         5.5         4.5       ]]
-    #
-    #  [[-0.91421354 -1.3284271   1.9142135   4.3284273 ]
-    #   [-1.5        -0.5         2.5         3.5       ]
-    #   [-2.328427   -4.156854    3.328427    7.156854  ]
-    #   [-3.5        -2.5         4.5         5.5       ]]
-    #
-    #  [[ 0.08578646 -1.3284271   2.9142137   4.3284273 ]
-    #   [-0.5        -0.5         3.5         3.5       ]
-    #   [-1.3284271  -4.156854    4.3284273   7.156854  ]
-    #   [-2.5        -2.5         5.5         5.5       ]]]
+    # [[-0.91421354 -2.328427    1.9142135   3.328427  ]
+    #  [-1.5        -1.5         2.5         2.5       ]
+    #  [-2.328427   -5.156854    3.328427    6.156854  ]
+    #  [-3.5        -3.5         4.5         4.5       ]
+    #  [ 0.08578646 -2.328427    2.9142137   3.328427  ]
+    #  [-0.5        -1.5         3.5         2.5       ]
+    #  [-1.3284271  -5.156854    4.3284273   6.156854  ]
+    #  [-2.5        -3.5         5.5         4.5       ]
+    #  [-0.91421354 -1.3284271   1.9142135   4.3284273 ]
+    #  [-1.5        -0.5         2.5         3.5       ]
+    #  [-2.328427   -4.156854    3.328427    7.156854  ]
+    #  [-3.5        -2.5         4.5         5.5       ]
+    #  [ 0.08578646 -1.3284271   2.9142137   4.3284273 ]
+    #  [-0.5        -0.5         3.5         3.5       ]
+    #  [-1.3284271  -4.156854    4.3284273   7.156854  ]
+    #  [-2.5        -2.5         5.5         5.5       ]]
