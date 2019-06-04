@@ -15,19 +15,19 @@ default_anchor_params = {
 }
 
 default_config = {
-    'RoiPoolingW'          : 6,
-    'RoiPoolingH'          : 6,
-    'BboxProposalNum'      : 300,
+    'RoiPoolingW': 6,
+    'RoiPoolingH': 6,
+    'BboxProposalNum': 300,
     'RegionProposalFilters': 512,
 }
 
 
-def RegionProposalNet(inputs, image, bbox_num, prior_anchor, filter_num, anchor_num):
-
-    inputs = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(inputs)
+def RegionProposalNet(inputs, image, bbox_num, prior_anchor, filter_num, anchor_num, feature_level):
+    inputs = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(
+        inputs)
 
     classification = keras.layers.Conv2D(2 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same')(inputs)
-    classification = keras.layers.Reshape((-1, 2))(classification)
+    classification = keras.layers.Reshape((-1, 2))(classification)  # [p of background, p of target]
     classification = keras.layers.Activation('softmax', axis=-1)(classification)
 
     regression = keras.layers.Conv2D(4 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same', )(inputs)
@@ -37,15 +37,17 @@ def RegionProposalNet(inputs, image, bbox_num, prior_anchor, filter_num, anchor_
 
     bbox = layers.BoxClip()([image, bbox])
 
+    bbox = bbox / (2 ** feature_level)  # get coordinate on input feature map
+
     proposal_bbox = layers.BboxProposal(bbox_num)([classification, bbox])
 
-    return proposal_bbox
+    return regression, classification, proposal_bbox
 
 
-
-def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_params=default_anchor_params, config=default_config):
+def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_params=default_anchor_params,
+               config=default_config):
     if inputs is None:
-        assert(inputs_shape is not None)
+        assert (inputs_shape is not None)
         inputs = keras.Input(inputs_shape)
 
     backbone = VggBackbone(backbone_name, inputs=inputs)
@@ -56,14 +58,11 @@ def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_par
 
     prior_anchor = layers.PriorAnchor(feature_level, anchor_params=anchor_params)(backbone_outputs)
 
-    proposal_bbox = RegionProposalNet(backbone_outputs, inputs, config['BboxProposalNum'], prior_anchor,
-                                      config['RegionProposalFilters'], anchor_num)
+    proposal_regression, proposal_classification, proposal_bbox = RegionProposalNet(backbone_outputs, inputs,
+                                                                                    config['BboxProposalNum'],
+                                                                                    prior_anchor,
+                                                                                    config['RegionProposalFilters'],
+                                                                                    anchor_num, feature_level)
 
-    roi_pooling = layers.RoiPooling(pooling_h=config['RoiPoolingH'], pooling_w=config['RoiPoolingW'])([backbone_outputs, proposal_bbox])
-
-
-
-
-
-
-
+    roi_pooling = layers.RoiPooling(pooling_h=config['RoiPoolingH'], pooling_w=config['RoiPoolingW'])(
+        [backbone_outputs, proposal_bbox])
