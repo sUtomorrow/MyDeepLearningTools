@@ -5,7 +5,7 @@
 
 
 class Backbone(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
         # if using custom objects, the custom_objects should be updated
         self.custom_objects = {}
 
@@ -42,7 +42,7 @@ class Backbone(object):
         """
         raise NotImplementedError('download_weights method not implemented.')
 
-    def load_weights(self, weight_path):
+    def load_weights(self, weight_path, by_name=True):
         """ load model weights
         """
         raise NotImplementedError('load_weights method not implemented.')

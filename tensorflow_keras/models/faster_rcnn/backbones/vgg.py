@@ -13,13 +13,13 @@ VGG16_WEIGHTS = 'https://github.com/fchollet/deep-learning-models/releases/downl
 VGG19_WEIGHTS = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 class VggBackbone(Backbone):
-    def __init__(self, backbone_name, inputs=None, inputs_shape=None):
+    def __init__(self, backbone_name, inputs=None, inputs_shape=None, **kwargs):
         self.backbone_name = backbone_name
         if inputs is None:
             self.inputs = keras.Input(shape=inputs_shape)
         else:
             self.inputs = inputs
-        super(VggBackbone, self).__init__()
+        super(VggBackbone, self).__init__(**kwargs)
 
     def build_network(self):
         if self.backbone_name == 'vgg16':
@@ -50,8 +50,8 @@ class VggBackbone(Backbone):
         if self.backbone_name not in allowed_backbone_names:
             raise ValueError('Backbone (\'{}\') not in allowed backbones ({}).'.format(self.backbone_name, allowed_backbone_names))
 
-    def load_weights(self, weight_path):
-        self.model.load_weights(weight_path)
+    def load_weights(self, weight_path, by_name=True):
+        self.model.load_weights(weight_path, by_name)
 
     def preprocess_image(self, inputs):
         if self.backbone_name == 'vgg16':
