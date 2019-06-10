@@ -8,7 +8,7 @@ import tensorflow.keras as keras
 
 class BboxProposal(keras.layers.Layer):
 
-    def __init__(self, bbox_num=300, nms_threshold=0.5,**kwargs):
+    def __init__(self, bbox_num=300, nms_threshold=0.5, **kwargs):
         self.bbox_num = bbox_num
         self.nms_threshold = nms_threshold
         super(BboxProposal, self).__init__(**kwargs)

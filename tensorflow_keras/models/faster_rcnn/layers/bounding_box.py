@@ -8,7 +8,6 @@ import tensorflow.keras as keras
 
 class BoundingBox(keras.layers.Layer):
     def __init__(self, **kwargs):
-
         super(BoundingBox, self).__init__(**kwargs)
 
     def call(self, inputs, **kwargs):

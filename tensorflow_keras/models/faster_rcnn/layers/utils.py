@@ -12,15 +12,15 @@ class BoxClip(keras.layers.Layer):
         super(BoxClip, self).__init__(**kwargs)
 
     def call(self, inputs, **kwargs):
-        image = inputs[0]
-        bbox = inputs[1]
-        image_shape = tf.shape(image)
+        images = inputs[0]
+        bboxes = inputs[1]
+        image_shape = tf.shape(images)
         width = image_shape[2]
         height = image_shape[1]
-        x1 = tf.clip_by_value(bbox[:, :, 0], 0, width)
-        y1 = tf.clip_by_value(bbox[:, :, 1], 0, height)
-        x2 = tf.clip_by_value(bbox[:, :, 2], 0, width)
-        y2 = tf.clip_by_value(bbox[:, :, 3], 0, height)
+        x1 = tf.clip_by_value(bboxes[:, :, 0], 0, width)
+        y1 = tf.clip_by_value(bboxes[:, :, 1], 0, height)
+        x2 = tf.clip_by_value(bboxes[:, :, 2], 0, width)
+        y2 = tf.clip_by_value(bboxes[:, :, 3], 0, height)
 
         return keras.backend.stack([x1, y1, x2, y2], axis=-1)
 
