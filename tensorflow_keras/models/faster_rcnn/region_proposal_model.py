@@ -37,17 +37,17 @@ class RegionProposalModel(object):
 
         # [p of background, p of target], shape: [batch_size, anchor_num, 2]
         classification = keras.layers.Reshape((-1, 2))(classification)
-        classification = keras.layers.Activation('softmax', axis=-1)(classification)
+        classification = keras.layers.Activation('softmax', axis=-1, name='rpn_classification')(classification)
 
         regression = keras.layers.Conv2D(4 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same', )(feature)
-        regression = keras.layers.Reshape((-1, 4))(regression)  # shape: [batch_size, anchor_num, 4]
+        regression = keras.layers.Reshape((-1, 4), name='rpn_regression')(regression)  # shape: [batch_size, anchor_num, 4]
 
         bbox = layers.BoundingBox()([prior_anchor, regression])
 
         # the coordinates in bbox have same scale with image's origin size
         bbox = layers.BoxClip()([self.images, bbox])
 
-        proposal_bbox = layers.BboxProposal(self.bbox_num, nms_threshold=0.7)([classification, bbox])
+        proposal_bbox = layers.BboxProposal(self.bbox_num, nms_threshold=0.7, name='rpn_proposal_bbox')([classification, bbox])
 
         return regression, classification, proposal_bbox
 

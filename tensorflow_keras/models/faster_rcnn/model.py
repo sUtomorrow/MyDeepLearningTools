@@ -23,9 +23,14 @@ default_config = {
     'ClassNum': 2,
 }
 
-def FasterRCNNHead(faster_rcnn_model):
+def FasterRCNNHead(faster_rcnn_model, region_proposal_model):
+    '''get predict result of faster-rcnn'''
     regression, classification = faster_rcnn_model.outputs
-
+    rpn_regression, rpn_classification, rpn_proposal_bbox = region_proposal_model.outputs
+    boxes = layers.BoundingBox(name='boxes')([rpn_proposal_bbox, regression])
+    labels = tf.argmax(classification, dimension=-1, name='labels')
+    scores = tf.reduce_max(classification, axis=-1, name='scores')
+    return boxes, labels, scores
 
 
 def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_params=default_anchor_params,
@@ -69,10 +74,10 @@ def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_par
     f = keras.layers.Dense(256, activation='relu')(f)
 
     regression = keras.layers.Dense(config['BboxProposalNum'] * 4)(f)
-    regression = keras.layers.Reshape((-1, 4))(regression)
+    regression = keras.layers.Reshape((-1, 4), name='regression')(regression)
 
     classification = keras.layers.Dense(config['BboxProposalNum'] * config['ClassNum'], activation='sigmoid')(f)
-    classification = keras.layers.Reshape((-1, config['ClassNum']))(classification)
+    classification = keras.layers.Reshape((-1, config['ClassNum']), name='classification')(classification)
 
     faster_rcnn_model = keras.models.Model(inputs = [inputs, backbone_outputs, rpn_proposal_bbox], outpus=[regression, classification], name=name)
 
