@@ -82,6 +82,3 @@ def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_par
     faster_rcnn_model = keras.models.Model(inputs = [inputs, backbone_outputs, rpn_proposal_bbox], outpus=[regression, classification], name=name)
 
     return backbone.model, rpn.model, faster_rcnn_model
-
-
-
