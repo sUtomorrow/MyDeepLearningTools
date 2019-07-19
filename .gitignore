@@ -105,3 +105,4 @@ venv.bak/
 
 # add by lty
 .idea
+.vscode
