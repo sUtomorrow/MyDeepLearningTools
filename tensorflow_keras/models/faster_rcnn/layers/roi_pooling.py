@@ -40,15 +40,27 @@ class RoiPooling(keras.layers.Layer):
         w_end   = tf.minimum(tf.cast(tf.round(roi[2]), tf.int32), feature_map_w)
         h_end   = tf.minimum(tf.cast(tf.round(roi[3]), tf.int32), feature_map_h)
 
+        # 我在github上看到一些代码直接把这个截取出来resize到输出大小了???这个也叫roi_pooling???
         roi_region = feature_map[h_start : h_end, w_start : w_end, :]
 
-        roi_h = h_end - h_start
-        roi_w = w_end - w_start
+        roi_h = tf.cast(h_end - h_start, tf.float32)
+        roi_w = tf.cast(w_end - w_start, tf.float32)
 
-        h_step = tf.cast(roi_h / pooling_h, tf.int32)
-        w_step = tf.cast(roi_w / pooling_w, tf.int32)
-
-        areas = tf.cast([[i * h_step, j*w_step, (i + 1) * h_step if i + 1 < pooling_h else roi_h, (j + 1) * w_step if j + 1 < pooling_w else roi_w] for j in range(pooling_w) for i in range(pooling_h)], tf.int32)
+        h_step = tf.cast(roi_h, tf.float32) / tf.cast(pooling_h, tf.float32)
+        w_step = tf.cast(roi_w, tf.float32) / tf.cast(pooling_w, tf.float32)
+        
+        # 注意这里的h_step和w_step可能小于1,这个时候pooling操作实际上将roi区域的特征值重复了
+        areas = tf.cast(
+            [
+                [
+                    i * h_step,
+                    j * w_step,
+                    (i + 1) * h_step if i + 1 < pooling_h else roi_h,
+                    (j + 1) * w_step if j + 1 < pooling_w else roi_w
+                ]
+                for j in range(pooling_w) for i in range(pooling_h)
+            ],
+            tf.int32)
 
         def pooling_area(x):
             return tf.reduce_max(roi_region[x[0] : x[2], x[1] : x[3], :], axis = [0, 1])
