@@ -33,8 +33,17 @@ def FasterRCNNHead(faster_rcnn_model, region_proposal_model):
     return boxes, labels, scores
 
 
-def FasterRCNN(inputs=None, inputs_shape=None, backbone_name='vgg16', anchor_params=default_anchor_params,
-               config=default_config, backbone_weights=None, pretrain_backbone=True, rpn_weights=None, name='faster_rcnn'):
+def FasterRCNN(
+        inputs=None,
+        inputs_shape=None,
+        backbone_name='vgg16',
+        anchor_params=default_anchor_params,
+        config=default_config,
+        backbone_weights=None,
+        pretrain_backbone=True,
+        rpn_weights=None,
+        name='faster_rcnn'
+):
     if inputs is None:
         assert (inputs_shape is not None)
         inputs = keras.Input(inputs_shape)
