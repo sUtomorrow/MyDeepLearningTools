@@ -9,32 +9,31 @@ class Backbone(object):
         #if using custom objects, the custom_objects should be updated in build
         self.custom_objects = {}
 
+        self.build()
         self.validate()
 
     def build(self):
         """ build backbone network,update self.custom_objects and set properties as follow:
-            self.outputs        : all output in a list
-            self.feature_levels : down sample times of output in a list, if output is not feature map, use -1
+            self._outputs        : all output in a list
+            self._feature_levels : down sample times of output in a list, if output is not feature map, use -1
         """
         raise NotImplementedError('build method not implemented')
 
-    def get_outputs(self):
-        """return the list of outputs
-        """
-        if hasattr(self, 'outputs'):
-            return self.outputs
-        else:
-            self.build()
-            return self.outputs
+    @property
+    def model(self):
+        return self._model
 
-    def get_feature_level(self):
+    @property
+    def outputs(self):
+        """return the list of output
+        """
+        return self._outputs
+
+    @property
+    def feature_levels(self):
         """return the downsample times of model's outputs
         """
-        if hasattr(self, 'feature_levels'):
-            return self.feature_levels
-        else:
-            self.build()
-            return self.feature_levels
+        return self._feature_levels
 
     def get_custom_objects(self):
         """return custom objects dict for this backbone

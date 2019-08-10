@@ -6,7 +6,7 @@
 import tensorflow.keras as keras
 from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.keras.applications import vgg16, vgg19
-from .backbone import Backbone
+from backbone import Backbone
 
 VGG16_WEIGHTS_PATH   = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels.h5'
 VGG16_WEIGHTS_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
@@ -29,18 +29,18 @@ class VggBackbone(Backbone):
 
     def build(self):
         if self.backbone_name == 'vgg16':
-            self.model = vgg16.VGG16(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
-            self.outputs = [self.model.get_layer('block%d_pool' % block_idx).output() for block_idx in range(1, 6)]
-            self.feature_levels = [level for level in range(1, 6)]
+            self._model = vgg16.VGG16(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
+            self._outputs = [self._model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
+            self._feature_levels = [level for level in range(1, 6)]
         elif self.backbone_name == 'vgg19':
-            self.model = vgg19.VGG19(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
-            self.outputs = [self.model.get_layer('block%d_pool' % block_idx).output() for block_idx in range(1, 6)]
-            self.feature_levels = [level for level in range(1, 6)]
+            self._model = vgg19.VGG19(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
+            self._outputs = [self._model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
+            self._feature_levels = [level for level in range(1, 6)]
         else:
             raise ValueError('Backbone (\'{}\') is invalid.'.format(self.backbone_name))
 
         if self.include_top:
-            self.outputs.append(self.model.get_layer('predictions').output())
+            self.outputs.append(self._model.get_layer('predictions').output)
             self.feature_levels.append(-1)
 
     def download_weights(self, cache_dir=None):
@@ -68,10 +68,17 @@ class VggBackbone(Backbone):
             raise ValueError('Backbone (\'{}\') not in allowed backbones ({}).'.format(self.backbone_name, allowed_backbone_names))
 
     def load_weights(self, weight_path, by_name=True):
-        self.model.load_weights(weight_path, by_name)
+        self._model.load_weights(weight_path, by_name)
 
     def preprocess_image(self, inputs):
         if self.backbone_name == 'vgg16':
             return vgg16.preprocess_input(inputs)
         elif self.backbone_name == 'vgg19':
             return vgg19.preprocess_input(inputs)
+
+if __name__ == '__main__':
+    vgg_backbone = VggBackbone('vgg19', None, (256, 256, 3), include_top=True, classes=10)
+    outputs = vgg_backbone.outputs
+    feature_levels = vgg_backbone.feature_levels
+    for feature_level, output in zip(feature_levels, outputs):
+        print(output.name, output.shape, 'level:', feature_level)
