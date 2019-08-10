@@ -5,7 +5,7 @@
 
 import keras
 
-class GeneratorKeras(keras.utils.Sequence):
+class Generator(keras.utils.Sequence):
     def __init__(self):
         pass
 

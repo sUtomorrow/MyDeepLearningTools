@@ -6,7 +6,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 
-from .backbones import VggBackbone
+from tensorflow_keras.backbones import VggBackbone
 from . import layers
 from .region_proposal_model import RegionProposalModel
 
@@ -48,7 +48,7 @@ def FasterRCNN(
         assert (inputs_shape is not None)
         inputs = keras.Input(inputs_shape)
 
-    backbone = VggBackbone(backbone_name, inputs=inputs)
+    backbone = VggBackbone(backbone_name, inputs=inputs, include_top=False)
 
     if pretrain_backbone:
         pretrain_weights = backbone.download_weights()
@@ -56,8 +56,9 @@ def FasterRCNN(
     elif backbone_weights:
         backbone.load_weights(backbone_weights)
 
-    backbone_outputs = backbone.get_outputs()
-    feature_level = backbone.get_feature_level()
+    # only use the last feature map
+    backbone_outputs = backbone.get_outputs()[-1]
+    feature_level = backbone.get_feature_level()[-1]
 
     rpn = RegionProposalModel(
         inputs        = backbone_outputs,
