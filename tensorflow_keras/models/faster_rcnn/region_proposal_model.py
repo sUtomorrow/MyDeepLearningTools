@@ -5,7 +5,7 @@
 # @File    : region_proposal_model.py
 
 import tensorflow as td
-import tensorflow.keras as keras
+import keras
 from . import layers
 
 

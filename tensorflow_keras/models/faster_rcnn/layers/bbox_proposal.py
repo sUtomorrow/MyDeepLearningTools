@@ -4,10 +4,9 @@
 # @File     : proposal
 
 import tensorflow as tf
-import tensorflow.keras as keras
+import keras
 
 class BboxProposal(keras.layers.Layer):
-
     def __init__(self, bbox_num=300, nms_threshold=0.5, **kwargs):
         self.bbox_num = bbox_num
         self.nms_threshold = nms_threshold
@@ -26,7 +25,7 @@ class BboxProposal(keras.layers.Layer):
 
             return bboxes
 
-        scores = classifications[:, :, 1]
+        scores = classifications[:, :, 1] # the last dimension of classifications is in one-hot: [background, foreground]
 
         bboxes = tf.map_fn(
             _nms,
@@ -36,7 +35,7 @@ class BboxProposal(keras.layers.Layer):
         return bboxes
 
     def compute_output_shape(self, input_shape):
-        return [input_shape[0][0], self.bbox_num, 4]
+        return (input_shape[0][0], self.bbox_num, 4)
 
 
 if __name__ == '__main__':

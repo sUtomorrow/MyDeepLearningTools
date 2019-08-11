@@ -3,10 +3,10 @@
 # @Author   : lty
 # @File     : vgg
 
-import tensorflow.keras as keras
-from tensorflow.python.keras.utils.data_utils import get_file
-from tensorflow.keras.applications import vgg16, vgg19
-from backbone import Backbone
+import keras
+from keras.utils.data_utils import get_file
+from keras.applications import vgg16, vgg19
+from .backbone import Backbone
 
 VGG16_WEIGHTS_PATH   = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels.h5'
 VGG16_WEIGHTS_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
@@ -21,7 +21,7 @@ class VggBackbone(Backbone):
         self.classes       = classes
 
         if inputs is None:
-            self.inputs = keras.Input(shape=inputs_shape)
+            self.inputs = keras.layers.Input(shape=inputs_shape)
         else:
             self.inputs = inputs
 
@@ -77,6 +77,7 @@ class VggBackbone(Backbone):
             return vgg19.preprocess_input(inputs)
 
 if __name__ == '__main__':
+    # test backbone
     vgg_backbone = VggBackbone('vgg19', None, (256, 256, 3), include_top=True, classes=10)
     outputs = vgg_backbone.outputs
     feature_levels = vgg_backbone.feature_levels

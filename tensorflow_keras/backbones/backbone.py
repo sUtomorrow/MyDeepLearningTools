@@ -8,6 +8,9 @@ class Backbone(object):
     def __init__(self, **kwargs):
         #if using custom objects, the custom_objects should be updated in build
         self.custom_objects = {}
+        self._model = None
+        self._outputs = None
+        self._feature_levels = None
 
         self.build()
         self.validate()

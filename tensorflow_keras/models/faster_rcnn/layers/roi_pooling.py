@@ -4,7 +4,7 @@
 # @File     : roi_pooling
 
 import tensorflow as tf
-import tensorflow.keras as keras
+import keras
 
 class RoiPooling(keras.layers.Layer):
     def __init__(self, pooling_h, pooling_w, **kwargs):

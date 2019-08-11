@@ -4,7 +4,7 @@
 # @File     : bounding_box
 
 import tensorflow as tf
-import tensorflow.keras as keras
+import keras
 
 class BoundingBox(keras.layers.Layer):
     def __init__(self, **kwargs):

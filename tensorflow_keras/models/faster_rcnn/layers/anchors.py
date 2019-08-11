@@ -2,8 +2,9 @@
 # @Time     : 5/25/19 10:42 AM
 # @Author   : lty
 # @File     : anchors
+
 import tensorflow as tf
-import tensorflow.keras as keras
+import keras
 import numpy as np
 
 default_anchor_params = {
@@ -12,11 +13,10 @@ default_anchor_params = {
 }
 
 class PriorAnchor(keras.layers.Layer):
-
-    def __init__(self, feature_level, anchor_param=default_anchor_params, **kwargs):
-        self.anchor_param  = anchor_param
-        self.size          = np.array(anchor_param['size'], np.float32)
-        self.ratio         = np.array(anchor_param['ratio'], np.float32)
+    def __init__(self, feature_level, anchor_params=default_anchor_params, **kwargs):
+        self.anchor_param  = anchor_params
+        self.size          = np.array(anchor_params['size'], np.float32)
+        self.ratio         = np.array(anchor_params['ratio'], np.float32)
         self.feature_level = feature_level
 
         self.anchor_size = np.tile(self.size[..., np.newaxis], (1, 2))
@@ -64,7 +64,6 @@ if __name__ == '__main__':
     test the ProirAnchor layer
     """
     import os
-    import numpy as np
 
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
@@ -74,7 +73,7 @@ if __name__ == '__main__':
 
     with tf.Session() as session:
         feature_maps_tf = tf.placeholder(tf.float32, shape=feature_maps_shape)
-        prior_anchor = PriorAnchor(0, anchor_param=anchor_params)(feature_maps_tf)
+        prior_anchor = PriorAnchor(0, anchor_params=anchor_params)(feature_maps_tf)
         result = session.run(prior_anchor, feed_dict={feature_maps_tf: feature_maps})
 
     print(result[0])
