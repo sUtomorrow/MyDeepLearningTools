@@ -17,8 +17,6 @@ class RoiPooling(keras.layers.Layer):
         return the output shape of ROI Pooling layer
         '''
         feature_map_shape, roi_shape = input_shape
-        print('feature_map_shape', feature_map_shape)
-        print('roi_shape', roi_shape)
         assert(feature_map_shape[0] == roi_shape[0])
         batch_size = feature_map_shape[0]
         n_rois = roi_shape[1]

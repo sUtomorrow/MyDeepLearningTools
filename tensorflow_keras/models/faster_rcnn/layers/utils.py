@@ -26,3 +26,31 @@ class BoxClip(keras.layers.Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
+
+class Label(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(Label, self).__init__(**kwargs)
+
+    def call(self, inputs, **kwargs):
+        """inputs is the classification predict in one-hot: [batch_size, N, class_num]
+        return the max index as label
+        """
+        labels = tf.argmax(inputs, dimension=-1, name='labels')
+        return labels
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[:2]
+
+class Score(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(Score, self).__init__(**kwargs)
+
+    def call(self, inputs, **kwargs):
+        """inputs is the classification predict in one-hot: [batch_size, N, class_num]
+        return the max as score
+        """
+        scores = tf.reduce_max(inputs, axis=-1, name='scores')
+        return scores
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[:2]

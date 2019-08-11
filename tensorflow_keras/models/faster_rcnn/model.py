@@ -67,12 +67,13 @@ def RegionProposalModel(
 
 def FasterRCNNHead(faster_rcnn_model, region_proposal_model):
     '''get predict result of faster-rcnn'''
-    regression, classification = faster_rcnn_model.outputs
-    rpn_regression, rpn_classification, rpn_proposal_bbox = region_proposal_model.outputs
-    boxes = layers.BoundingBox(name='boxes')([rpn_proposal_bbox, regression])
-    labels = tf.argmax(classification, dimension=-1, name='labels')
-    scores = tf.reduce_max(classification, axis=-1, name='scores')
-    return boxes, labels, scores
+    regressions, classifications = faster_rcnn_model.outputs
+    rpn_regressions, rpn_classifications, rpn_proposal_bboxes = region_proposal_model.outputs
+    boxes = layers.BoundingBox(name='boxes')([rpn_proposal_bboxes, regressions])
+    labels = layers.Label(name='labels')(classifications)
+    scores = layers.Score(name='scores')(classifications)
+    model = keras.models.Model(inputs=faster_rcnn_model.input, outputs=[boxes, labels, scores])
+    return model
 
 
 def FasterRCNN(
@@ -150,7 +151,14 @@ if __name__ == '__main__':
         name='faster_rcnn'
     )
 
+    training_faster_rcnn_model = faster_rcnn_model
+    inference_faster_rcnn_model = FasterRCNNHead(faster_rcnn_model, rpn_model)
+
     print(faster_rcnn_model.summary())
+
+    print(inference_faster_rcnn_model.summary())
+
+    print(inference_faster_rcnn_model.output)
 
 
 

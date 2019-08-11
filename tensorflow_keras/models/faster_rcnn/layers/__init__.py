@@ -7,5 +7,5 @@ from .roi_pooling import RoiPooling
 from .anchors import PriorAnchor
 from .bounding_box import BoundingBox
 from .bbox_proposal import BboxProposal
-from .utils import BoxClip
+from .utils import BoxClip, Label, Score
 from .rescale import Rescale
