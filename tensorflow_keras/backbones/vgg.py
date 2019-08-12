@@ -15,33 +15,36 @@ VGG19_WEIGHTS_PATH   = 'https://github.com/fchollet/deep-learning-models/release
 VGG19_WEIGHTS_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 class VggBackbone(Backbone):
-    def __init__(self, backbone_name, inputs=None, inputs_shape=None, include_top=False, classes=None, **kwargs):
+    def __init__(self, backbone_name, inputs, inputs_shape=None, include_top=False, classes=None, name='vggbackbone', **kwargs):
         self.backbone_name = backbone_name
         self.include_top   = include_top
         self.classes       = classes
-
-        if inputs is None:
-            self.inputs = keras.layers.Input(shape=inputs_shape)
-        else:
-            self.inputs = inputs
+        self._inputs       = inputs
+        self.inputs_shape  = inputs_shape
+        self.name          = name
 
         super(VggBackbone, self).__init__(**kwargs)
 
     def build(self):
+        if self._inputs is None:
+            self._inputs = keras.layers.Input(shape=self.inputs_shape)
+
         if self.backbone_name == 'vgg16':
-            self._model = vgg16.VGG16(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
-            self._outputs = [self._model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
+            _model = vgg16.VGG16(self.include_top, None, input_tensor=self._inputs, classes=self.classes)
+            self._outputs = [_model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
             self._feature_levels = [level for level in range(1, 6)]
         elif self.backbone_name == 'vgg19':
-            self._model = vgg19.VGG19(self.include_top, None, input_tensor=self.inputs, classes=self.classes)
-            self._outputs = [self._model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
+            _model = vgg19.VGG19(self.include_top, None, input_tensor=self._inputs, classes=self.classes)
+            self._outputs = [_model.get_layer('block%d_pool' % block_idx).output for block_idx in range(1, 6)]
             self._feature_levels = [level for level in range(1, 6)]
         else:
             raise ValueError('Backbone (\'{}\') is invalid.'.format(self.backbone_name))
 
         if self.include_top:
-            self.outputs.append(self._model.get_layer('predictions').output)
+            self._outputs.append(self._model.get_layer('predictions').output)
             self.feature_levels.append(-1)
+
+        self._model = keras.models.Model(inputs=self._inputs, outputs=self._outputs, name=self.name)
 
     def download_weights(self, cache_dir=None):
         weights_path = None

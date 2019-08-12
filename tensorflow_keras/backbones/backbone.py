@@ -9,6 +9,7 @@ class Backbone(object):
         #if using custom objects, the custom_objects should be updated in build
         self.custom_objects = {}
         self._model = None
+        self._inputs = None
         self._outputs = None
         self._feature_levels = None
 
@@ -18,6 +19,7 @@ class Backbone(object):
     def build(self):
         """ build backbone network,update self.custom_objects and set properties as follow:
             self._outputs        : all output in a list
+            self._outputs        : all output in a list
             self._feature_levels : down sample times of output in a list, if output is not feature map, use -1
         """
         raise NotImplementedError('build method not implemented')
@@ -25,12 +27,6 @@ class Backbone(object):
     @property
     def model(self):
         return self._model
-
-    @property
-    def outputs(self):
-        """return the list of output
-        """
-        return self._outputs
 
     @property
     def feature_levels(self):

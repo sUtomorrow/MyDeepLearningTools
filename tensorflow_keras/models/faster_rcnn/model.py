@@ -26,8 +26,8 @@ default_config = {
 
 
 def RegionProposalModel(
-        inputs,
-        images,
+        image_inputs_shape,
+        feature_inputs_shape,
         feature_level,
         bbox_num,
         filter_num,
@@ -35,10 +35,13 @@ def RegionProposalModel(
         name='rpn',
         weights=None
 ):
-    anchor_num = len(anchor_params['size']) * len(anchor_params['ratio'])
-    prior_anchor = layers.PriorAnchor(feature_level, anchor_params=anchor_params)(inputs)
+    image_inputs = keras.layers.Input(shape=image_inputs_shape, name='rpn_image_inputs')
+    feature_inputs = keras.layers.Input(shape=feature_inputs_shape, name='rpn_feature_inputs')
 
-    feature = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(inputs)
+    anchor_num = len(anchor_params['size']) * len(anchor_params['ratio'])
+    prior_anchor = layers.PriorAnchor(feature_level, anchor_params=anchor_params)(feature_inputs)
+
+    feature = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(feature_inputs)
 
     classifications = keras.layers.Conv2D(2 * anchor_num, kernel_size=(1, 1), strides=(1, 1), padding='same')(feature)
 
@@ -52,11 +55,11 @@ def RegionProposalModel(
     bboxes = layers.BoundingBox()([prior_anchor, regressions])
 
     # the coordinates in bbox have same scale with image's origin size
-    bboxes = layers.BoxClip()([images, bboxes])
+    bboxes = layers.BoxClip()([image_inputs, bboxes])
 
     proposal_bboxes = layers.BboxProposal(bbox_num, nms_threshold=0.7, name='rpn_proposal_bbox')([classifications, bboxes])
 
-    model = keras.models.Model(inputs=images, outputs=[regressions, classifications, proposal_bboxes], name=name)
+    model = keras.models.Model(inputs=[image_inputs, feature_inputs], outputs=[regressions, classifications, proposal_bboxes], name=name)
 
     if weights:
         model.load_weights(weights)
@@ -64,34 +67,52 @@ def RegionProposalModel(
     return model
 
 
-
-def FasterRCNNHead(faster_rcnn_model, region_proposal_model):
+def FasterRCNNInferenceModel(image_inputs, rpn_proposal_bboxes, faster_rcnn_regressions, faster_rcnn_classifications, name='faster_rcnn_inference'):
     '''get predict result of faster-rcnn'''
-    regressions, classifications = faster_rcnn_model.outputs
-    rpn_regressions, rpn_classifications, rpn_proposal_bboxes = region_proposal_model.outputs
-    boxes = layers.BoundingBox(name='boxes')([rpn_proposal_bboxes, regressions])
-    labels = layers.Label(name='labels')(classifications)
-    scores = layers.Score(name='scores')(classifications)
-    model = keras.models.Model(inputs=faster_rcnn_model.input, outputs=[boxes, labels, scores])
-    return model
+    boxes  = layers.BoundingBox()([rpn_proposal_bboxes, faster_rcnn_regressions])
+    boxes  = layers.BoxClip(name='boxes')([image_inputs, boxes])
+    labels = layers.Label(name='labels')(faster_rcnn_classifications)
+    scores = layers.Score(name='scores')(faster_rcnn_classifications)
+    return keras.models.Model(inputs=image_inputs, outputs=[boxes, labels, scores], name=name)
 
 
-def FasterRCNN(
-        inputs,
-        inputs_shape=None,
+def FasterRCNNModel(feature_inputs_shape, proposal_bbox_inputs_shape, feature_level, model_params, name='faster_rcnn'):
+
+    feature_inputs       = keras.layers.Input(shape=feature_inputs_shape, name='feature_inputs')
+    proposal_bbox_inputs = keras.layers.Input(shape=proposal_bbox_inputs_shape, name='proposal_bbox_inputs')
+
+    scale = 1 / (2 ** feature_level)
+    proposal_bbox_scale = layers.Rescale(scale=scale)(proposal_bbox_inputs)
+
+    roi_pooling = layers.RoiPooling(pooling_h=model_params['RoiPoolingH'], pooling_w=model_params['RoiPoolingW'])(
+        [feature_inputs, proposal_bbox_scale])  # roi_pooling: (batch_size, roi_number, pooling_h, pooling_w, channels)
+
+    # use 3D Convolution instead locally Dense layer
+    f = keras.layers.Conv3D(256, kernel_size=(1, model_params['RoiPoolingH'], model_params['RoiPoolingW']),
+                            padding='valid', activation='relu')(roi_pooling)
+    f = keras.layers.Conv3D(256, kernel_size=(1, 1, 1), padding='valid', activation='relu')(f)
+
+    regressions = keras.layers.Conv3D(4, kernel_size=(1, 1, 1), padding='valid')(f)
+    regressions = keras.layers.Reshape((-1, 4), name='regression')(regressions)
+
+    classifications = keras.layers.Conv3D(model_params['ClassNum'], kernel_size=(1, 1, 1), activation='sigmoid')(f)
+    classifications = keras.layers.Reshape((-1, model_params['ClassNum']), name='classification')(classifications)
+
+    return keras.models.Model(inputs=[feature_inputs, proposal_bbox_inputs], outputs=[regressions, classifications], name=name)
+
+
+def FasterRCNNComponents(
+        anchor_params,
+        model_params,
+        image_shape=(512, 512, 3),
+        proposal_bbox_shape=(None, 4),
         backbone_name='vgg16',
-        anchor_params=default_anchor_params,
-        config=default_config,
         backbone_weights=None,
         pretrain_backbone=True,
         rpn_weights=None,
         name='faster_rcnn'
 ):
-    if inputs is None:
-        assert (inputs_shape is not None)
-        inputs = keras.layers.Input(inputs_shape)
-
-    backbone = VggBackbone(backbone_name, inputs=inputs, include_top=False)
+    backbone = VggBackbone(backbone_name, inputs=None, inputs_shape=image_shape, include_top=False, name=backbone_name)
 
     if pretrain_backbone:
         if backbone_weights:
@@ -101,64 +122,87 @@ def FasterRCNN(
             backbone.load_weights(pretrain_weights)
 
     # only use the last feature map
-    backbone_outputs = backbone.outputs[-1]
+    backbone_outputs = backbone.model.outputs[-1]
     feature_level = backbone.feature_levels[-1]
 
     rpn_model = RegionProposalModel(
-        inputs        = backbone_outputs,
-        images        = inputs,
+        image_inputs_shape   = image_shape,
+        feature_inputs_shape = backbone_outputs.shape.as_list()[1:],
         feature_level = feature_level,
-        bbox_num      = config['BboxProposalNum'],
-        filter_num    = config['RegionProposalFilters'],
+        bbox_num      = model_params['BboxProposalNum'],
+        filter_num    = model_params['RegionProposalFilters'],
         anchor_params = anchor_params,
         name          = 'rpn',
         weights       = rpn_weights
     )
 
-    rpn_regression, rpn_classification, rpn_proposal_bbox = rpn_model.outputs
-
-    scale = 1 / (2 ** feature_level)
-    rpn_proposal_bbox_scale = layers.Rescale(scale=scale)(rpn_proposal_bbox)
-
-    roi_pooling = layers.RoiPooling(pooling_h=config['RoiPoolingH'], pooling_w=config['RoiPoolingW'])(
-        [backbone_outputs, rpn_proposal_bbox_scale]) # roi_pooling: (batch_size, roi_number, pooling_h, pooling_w, channels)
-
-    # use 3D Convolution instead locally Dense layer
-    f = keras.layers.Conv3D(256, kernel_size=(1, config['RoiPoolingH'], config['RoiPoolingW']), padding='valid', activation='relu')(roi_pooling)
-    f = keras.layers.Conv3D(256, kernel_size=(1, 1, 1), padding='valid', activation='relu')(f)
-
-    regressions = keras.layers.Conv3D(4, kernel_size=(1, 1, 1), padding='valid')(f)
-    regressions = keras.layers.Reshape((-1, 4), name='regression')(regressions)
-
-    classifications = keras.layers.Conv3D(config['ClassNum'], kernel_size=(1, 1, 1), activation='sigmoid')(f)
-    classifications = keras.layers.Reshape((-1, config['ClassNum']), name='classification')(classifications)
-
-    faster_rcnn_model = keras.models.Model(inputs=inputs, outputs=[regressions, classifications], name=name)
+    faster_rcnn_model = FasterRCNNModel(
+        feature_inputs_shape       = backbone_outputs.shape.as_list()[1:],
+        proposal_bbox_inputs_shape = proposal_bbox_shape,
+        feature_level              = feature_level,
+        model_params               = model_params,
+        name                       = name,
+    )
 
     return backbone.model, rpn_model, faster_rcnn_model
 
+
 if __name__ == '__main__':
-    # test faster-rcnn
-    backbone_model, rpn_model, faster_rcnn_model = FasterRCNN(
-        inputs=None,
-        inputs_shape=(256, 256, 3),
-        backbone_name='vgg16',
+
+    input_shape = (512, 512, 3)
+    # train region proposal model and faster-rcnn model split
+    image_inputs = keras.layers.Input(shape=input_shape, name='image')
+    proposal_bbox_inputs = keras.layers.Input(shape=(None, 4), name='proposal_bbox')
+
+    backbone_model, rpn_model, faster_rcnn_model = FasterRCNNComponents(
         anchor_params=default_anchor_params,
-        config=default_config,
+        model_params=default_config,
+        image_shape=input_shape,
+        proposal_bbox_shape=(None, 4),
+        backbone_name='vgg16',
         backbone_weights=None,
-        pretrain_backbone=True,
+        pretrain_backbone=False,
         rpn_weights=None,
         name='faster_rcnn'
     )
 
-    training_faster_rcnn_model = faster_rcnn_model
-    inference_faster_rcnn_model = FasterRCNNHead(faster_rcnn_model, rpn_model)
+    backbone_outputs = backbone_model(image_inputs)[-1]
 
-    print(faster_rcnn_model.summary())
+    # print('backbone_outputs.shape', backbone_outputs.shape)
+    # print('backbone_outputs._keras_shape', backbone_outputs._keras_shape)
 
-    print(inference_faster_rcnn_model.summary())
+    rpn_regressions, rpn_classifications, rpn_proposal_bboxes = rpn_model([image_inputs, backbone_outputs])
 
-    print(inference_faster_rcnn_model.output)
+    faster_rcnn_regressions_from_input_box, faster_rcnn_classifications_from_input_box = faster_rcnn_model([backbone_outputs, proposal_bbox_inputs])
+
+    faster_rcnn_regressions, faster_rcnn_classifications = faster_rcnn_model([backbone_outputs, rpn_proposal_bboxes])
+
+    rpn_model_training = rpn_model
+
+    faster_rcnn_model_training_1 = keras.models.Model(
+        inputs=[image_inputs, proposal_bbox_inputs],
+        outputs=[faster_rcnn_regressions_from_input_box, faster_rcnn_classifications_from_input_box],
+        name='faster_rcnn_model_training_1'
+    )
+
+    faster_rcnn_model_training_2 = keras.models.Model(
+        inputs=image_inputs,
+        outputs=[faster_rcnn_regressions, faster_rcnn_classifications],
+        name='faster_rcnn_model_training_2'
+    )
+
+    faster_rcnn_model_inference = FasterRCNNInferenceModel(
+        image_inputs=image_inputs,
+        rpn_proposal_bboxes = rpn_proposal_bboxes,
+        faster_rcnn_regressions=faster_rcnn_regressions,
+        faster_rcnn_classifications=faster_rcnn_classifications,
+        name='faster_rcnn_inference'
+    )
+
+    print(rpn_model_training.summary())
+    print(faster_rcnn_model_training_1.summary())
+    print(faster_rcnn_model_training_2.summary())
+    print(faster_rcnn_model_inference.summary())
 
 
 
