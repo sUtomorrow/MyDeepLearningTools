@@ -8,15 +8,19 @@ import keras
 import numpy as np
 
 default_anchor_params = {
-    'size': [4, 8, 16],
-    'ratio': [0.5, 1, 2.0],
+    'sizes': [128],
+    'strides': [32],
+    'ratios': [0.5, 1, 2.0],
+    'scales': [0.5, 1., 2.0]
 }
 
 class PriorAnchor(keras.layers.Layer):
-    def __init__(self, feature_level, anchor_params=default_anchor_params, **kwargs):
-        self.anchor_param  = anchor_params
-        self.size          = np.array(anchor_params['size'], np.float32)
-        self.ratio         = np.array(anchor_params['ratio'], np.float32)
+    def __init__(self, anchor_size_idx, feature_level, anchor_params=default_anchor_params, **kwargs):
+        self.anchor_param  = anchor_params if anchor_params else default_anchor_params
+        self.ratio         = np.array(self.anchor_param['ratios'], np.float32)
+        self.scale         = np.array(self.anchor_param['scales'], np.float32)
+        self.size          = self.scale * self.anchor_param['sizes'][anchor_size_idx]
+
         self.feature_level = feature_level
 
         self.anchor_size = np.tile(self.size[..., np.newaxis], (1, 2))
@@ -25,7 +29,7 @@ class PriorAnchor(keras.layers.Layer):
         scale_factor     = np.stack([np.sqrt(scale_factor), 1 / np.sqrt(scale_factor)], axis=-1)
         self.anchor_size = self.anchor_size * scale_factor
 
-        self.anchor_num = len(self.size) * len(self.ratio)
+        self.anchor_num = len(self.scale) * len(self.ratio)
 
         self.anchor_shift_tensor = tf.cast(np.concatenate([-self.anchor_size / 2, self.anchor_size - self.anchor_size / 2], axis = -1), tf.float32)
         self.anchor_shift_tensor = tf.reshape(self.anchor_shift_tensor, [1, 1, 1, self.anchor_num, 4])
@@ -68,12 +72,12 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
     feature_maps_shape = [None, None, None, 3]
-    anchor_params = {'size': [4, 8], 'ratio': [0.5, 1]}
+    anchor_params = {'size': [4], 'ratio': [0.5, 1], 'scale': [1.0, 2.0]}
     feature_maps = np.zeros((10, 2, 2, 3), np.float32)
 
     with tf.Session() as session:
         feature_maps_tf = tf.placeholder(tf.float32, shape=feature_maps_shape)
-        prior_anchor = PriorAnchor(0, anchor_params=anchor_params)(feature_maps_tf)
+        prior_anchor = PriorAnchor(0, 0, anchor_params=anchor_params)(feature_maps_tf)
         result = session.run(prior_anchor, feed_dict={feature_maps_tf: feature_maps})
 
     print(result[0])

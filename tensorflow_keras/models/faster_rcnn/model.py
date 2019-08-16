@@ -11,8 +11,10 @@ import layers
 
 
 default_anchor_params = {
-    'size': [128, 256, 512],
-    'ratio': [0.5, 1, 2.0],
+    'sizes': [256],
+    'strides': [32],
+    'ratios': [0.5, 1, 2.0],
+    'scales': [0.5, 1.0, 2.0]
 }
 
 
@@ -38,8 +40,9 @@ def RegionProposalModel(
     image_inputs = keras.layers.Input(shape=image_inputs_shape, name='rpn_image_inputs')
     feature_inputs = keras.layers.Input(shape=feature_inputs_shape, name='rpn_feature_inputs')
 
-    anchor_num = len(anchor_params['size']) * len(anchor_params['ratio'])
-    prior_anchor = layers.PriorAnchor(feature_level, anchor_params=anchor_params)(feature_inputs)
+    anchor_num = len(anchor_params['scales']) * len(anchor_params['ratios'])
+
+    prior_anchor = layers.PriorAnchor(0, feature_level, anchor_params=anchor_params)(feature_inputs)
 
     feature = keras.layers.Conv2D(filter_num, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(feature_inputs)
 
