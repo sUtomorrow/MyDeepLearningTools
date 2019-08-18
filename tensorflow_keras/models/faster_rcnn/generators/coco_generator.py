@@ -13,7 +13,7 @@ class CocoGenerator(DetectionDataGenerator):
         self.data_dir = data_dir
         self.annotation_file_path = annotation_file_path
         self.coco = COCO(self.annotation_file_path)
-        self.data_path_list, self.annotations_list, self._label_idx2name, self._label_name2idx = self._parse_data_from_coco()
+        self.data_path_list, self.annotations_list, self._class_idx2name, self._class_name2idx = self._parse_data_from_coco()
         super(CocoGenerator, self).__init__(**kwargs)
 
     def _parse_data_from_coco(self):
@@ -21,11 +21,11 @@ class CocoGenerator(DetectionDataGenerator):
         image_infos = [self.coco.loadImgs(img_id) for img_id in sorted(self.coco.getImgIds())]
         image_path_list = [] # [os.path.join(self.data_dir, image_info['file_name']) for image_info in image_infos]
         annotations_list = []
-        label_idx2name = {}
-        label_name2idx = {}
+        class_idx2name = {}
+        class_name2idx = {}
         for image_info in image_infos:
             annotations = {
-                'label_idxes': [],
+                'class_idxes': [],
                 'bboxes': []
             }
             coco_annotationIds = self.coco.getAnnIds(imgIds=image_info['id'])
@@ -42,20 +42,20 @@ class CocoGenerator(DetectionDataGenerator):
                 x2 = x1 + coco_annotation['bbox'][2]
                 y2 = y1 + coco_annotation['bbox'][3]
 
-                label_idx = coco_annotation['category_id'] - 1
-                label_name = self.coco.loadCats(ids=label_idx+1)[0]
-                if label_idx not in label_idx2name:
-                    label_idx2name[label_idx] = label_name
+                class_idx = coco_annotation['category_id'] - 1
+                class_name = self.coco.loadCats(ids=coco_annotation['category_id'])[0]
+                if class_idx not in class_idx2name:
+                    class_idx2name[class_idx] = class_name
 
-                if label_name not in label_name2idx:
-                    label_idx2name[label_name] = label_idx
+                if class_name not in class_name2idx:
+                    class_name2idx[class_name] = class_idx
 
-                annotations['label_idxes'].append(label_idx)
+                annotations['class_idxes'].append(class_idx)
                 annotations['bboxes'].append([x1, y1, x2, y2])
             annotations_list.append(annotations)
 
         print('data parsed')
-        return image_path_list, annotations_list, label_idx2name, label_name2idx
+        return image_path_list, annotations_list, class_idx2name, class_name2idx
 
     def size(self):
         return len(self.data_path_list)

@@ -214,8 +214,8 @@ def anchors_for_shape(
     Args
         image_shape: The shape of the image.
         feature_levles: List of ints representing which pyramids to use (defaults to [2, 3, 4, 5, 6]).
-        anchor_params: Struct containing anchor parameters. If None, default values are used.
-        shapes_callback: Function to call for getting the shape of the image at different pyramid levels.
+        anchor_params: Dict containing anchor parameters. If None, default values are used.
+        shapes_callback: Function to call for getting the shape of the image at different feature levels.
 
     Returns
         np.array of shape (N, 4) containing the (x1, y1, x2, y2) coordinates for the anchors.
@@ -249,7 +249,7 @@ def rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotati
     """"""
     bboxes = annotations['bboxes']
     # all annotations is foreground class, class idx = 0, the rpn output only one class probability
-    label_idxes = np.zeros(annotations['label_idxes'].shape, dtype=np.int32)
+    label_idxes = np.zeros(annotations['class_idxes'].shape, dtype=np.int32)
 
     anchors = anchors_for_shape(image_shape, feature_levels, anchor_params, guess_shapes)
 
@@ -258,24 +258,27 @@ def rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotati
     return outputs
 
 
-def rpn_groups_annotations2outputs(anchor_params, feature_levels, positive_iou=0.5, negative_iou=0.3, class_num=2):
-    def _rpn_groups_annotations2outputs(group_datas, group_annotations):
+def groups_annotations2outputs_from_anchors(anchor_params, feature_levels, positive_iou=0.5, negative_iou=0.3, class_num=2):
+    """construct the function for compute target output from anchors and annotations
+    """
+    def _groups_annotations2outputs_from_anchors(group_datas, group_annotations):
         image_shape = group_datas.shape[1:]
         group_outputs = []
         for annotations in group_annotations:
             group_outputs.append(rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotations, positive_iou, negative_iou, class_num))
         return np.array(group_outputs, dtype=np.float32)
 
-    return _rpn_groups_annotations2outputs
+    return _groups_annotations2outputs_from_anchors
 
 
 def group_annotations2outputs_from_proposal_bboxes(positive_iou=0.5, negative_iou=0.3, class_num=80):
+    """construct the function for compute target output from proposal bboxes and annotations"""
     def _group_annotations2outputs_from_proposal_bboxes(group_proposal_bboxes, group_annotations):
         group_outputs = []
-        for annotations in group_annotations:
+        for proposal_bboxes, annotations in zip(group_proposal_bboxes, group_annotations):
             bboxes = annotations['bboxes']
-            label_idxes = annotations['label_idxes']
-            group_outputs.append(bboxes2outputs(group_proposal_bboxes, bboxes, label_idxes, positive_iou, negative_iou, class_num))
+            label_idxes = annotations['class_idxes']
+            group_outputs.append(bboxes2outputs(proposal_bboxes, bboxes, label_idxes, positive_iou, negative_iou, class_num))
         return np.array(group_outputs, dtype=np.float32)
 
     return _group_annotations2outputs_from_proposal_bboxes

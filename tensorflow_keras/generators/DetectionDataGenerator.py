@@ -25,8 +25,8 @@ class DetectionDataGenerator(keras.utils.Sequence):
         self.group_annotations2outputs = group_annotations2outputs
 
         # used to index label idx and label name
-        self._label_name2idx = {}
-        self._label_idx2name = {}
+        self._class_name2idx = {}
+        self._class_idx2name = {}
 
         np.random.seed(seed)
 
@@ -42,23 +42,23 @@ class DetectionDataGenerator(keras.utils.Sequence):
         """return data and label in a batch"""
         return self.compute_input_output(item_idx)
 
-    def has_label_name(self, label_name):
-        if label_name in self._label_name2idx:
+    def has_class_name(self, class_name):
+        if class_name in self._class_name2idx:
             return True
         else:
             return False
 
-    def has_label_idx(self, label_idx):
-        if label_idx in self._label_idx2name:
+    def has_class_idx(self, class_idx):
+        if class_idx in self._class_idx2name:
             return True
         else:
             return False
 
-    def label_name2idx(self, label_name):
-        return self._label_name2idx[label_name]
+    def class_name2idx(self, class_name):
+        return self._class_name2idx[class_name]
 
-    def label_idx2name(self, label_idx):
-        return self._label_idx2name[label_idx]
+    def class_idx2name(self, class_idx):
+        return self._class_idx2name[class_idx]
 
     def size(self):
         """return number of data"""
