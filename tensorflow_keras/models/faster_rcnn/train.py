@@ -47,7 +47,7 @@ train_config = {
 }
 
 
-def fit_generator(model,
+def fit_generator_for_frcnn(model,
                   generator,
                   steps_per_epoch=None,
                   epochs=1,

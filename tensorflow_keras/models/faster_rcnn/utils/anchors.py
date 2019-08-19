@@ -245,7 +245,7 @@ def anchors_for_shape(
     return all_anchors
 
 
-def rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotations, positive_iou=0.5, negative_iou=0.3, class_num=2):
+def rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotations, positive_iou=0.5, negative_iou=0.3, class_num=1):
     """"""
     bboxes = annotations['bboxes']
     # all annotations is foreground class, class idx = 0, the rpn output only one class probability
@@ -258,27 +258,64 @@ def rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotati
     return outputs
 
 
-def groups_annotations2outputs_from_anchors(anchor_params, feature_levels, positive_iou=0.5, negative_iou=0.3, class_num=2):
-    """construct the function for compute target output from anchors and annotations
-    """
-    def _groups_annotations2outputs_from_anchors(group_datas, group_annotations):
-        image_shape = group_datas.shape[1:]
-        group_outputs = []
-        for annotations in group_annotations:
-            group_outputs.append(rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotations, positive_iou, negative_iou, class_num))
-        return np.array(group_outputs, dtype=np.float32)
-
-    return _groups_annotations2outputs_from_anchors
+def group_datas2inputs(group_datas):
+    return np.stack(group_datas, axis=0)
 
 
-def group_annotations2outputs_from_proposal_bboxes(positive_iou=0.5, negative_iou=0.3, class_num=80):
-    """construct the function for compute target output from proposal bboxes and annotations"""
-    def _group_annotations2outputs_from_proposal_bboxes(group_proposal_bboxes, group_annotations):
-        group_outputs = []
-        for proposal_bboxes, annotations in zip(group_proposal_bboxes, group_annotations):
-            bboxes = annotations['bboxes']
-            label_idxes = annotations['class_idxes']
-            group_outputs.append(bboxes2outputs(proposal_bboxes, bboxes, label_idxes, positive_iou, negative_iou, class_num))
-        return np.array(group_outputs, dtype=np.float32)
+def group_datas_annotations2inputs_outputs(
+        feature_levels,
+        from_proposal_bboxes=False,
+        proposal_bboxes_in_inputs=False,
+        positive_iou=0.5,
+        negative_iou=0.3,
+        class_num=1,
+        anchor_params=None,
+        backbone_model=None,
+        rpn_model=None,
+):
+    if from_proposal_bboxes:
+        def _group_annotations2outputs_from_proposal_bboxes(group_datas, group_annotations):
+            group_regression_outputs = []
+            group_classification_outputs = []
+            inputs = group_datas2inputs(group_datas)
+            backbone_outputs = backbone_model.predict_on_batch(inputs)
+            group_proposal_bboxes = []
+            for feature_level in feature_levels:
+                group_proposal_bboxes.append(rpn_model.predict_on_batch([inputs, backbone_outputs[feature_level]]))
 
-    return _group_annotations2outputs_from_proposal_bboxes
+            if len(feature_levels) > 1:
+                group_proposal_bboxes = np.concatenate(group_proposal_bboxes, axis=1)
+            else:
+                group_proposal_bboxes = group_proposal_bboxes[0]
+
+            for proposal_bboxes, annotations in zip(group_proposal_bboxes, group_annotations):
+                bboxes = annotations['bboxes']
+                label_idxes = annotations['class_idxes']
+                regression_outputs, classification_outputs = bboxes2outputs(proposal_bboxes, bboxes, label_idxes, positive_iou, negative_iou, class_num)
+                group_regression_outputs.append(regression_outputs)
+                group_classification_outputs.append(classification_outputs)
+
+            group_regression_outputs = np.stack(group_regression_outputs, axis=0)
+            group_classification_outputs = np.stack(group_classification_outputs, axis=0)
+
+            if proposal_bboxes_in_inputs:
+                return [inputs, group_proposal_bboxes], [group_regression_outputs, group_classification_outputs]
+            else:
+                return inputs, [group_regression_outputs, group_classification_outputs]
+
+        return _group_annotations2outputs_from_proposal_bboxes
+    else:
+        def _groups_annotations2outputs_from_anchors(group_datas, group_annotations):
+            image_shape = group_datas.shape[1:]
+            inputs = group_datas2inputs(group_datas)
+            group_regression_outputs = []
+            group_classification_outputs = []
+            for annotations in group_annotations:
+                regression_outputs, classification_outputs = rpn_annotations2outputs(image_shape, anchor_params, feature_levels, annotations, positive_iou, negative_iou, class_num)
+                group_regression_outputs.append(regression_outputs)
+                group_classification_outputs.append(classification_outputs)
+
+            group_regression_outputs = np.stack(group_regression_outputs, axis=0)
+            group_classification_outputs = np.stack(group_classification_outputs, axis=0)
+            return inputs, [group_regression_outputs, group_classification_outputs]
+        return _groups_annotations2outputs_from_anchors

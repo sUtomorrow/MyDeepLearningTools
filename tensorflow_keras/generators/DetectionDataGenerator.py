@@ -7,13 +7,12 @@ import numpy as np
 import keras
 
 class DetectionDataGenerator(keras.utils.Sequence):
-    def __init__(self, batch_size, shuffle, data_aug_func_list, group_datas2inputs, group_annotations2outputs, seed=10086, **kwargs):
+    def __init__(self, batch_size, shuffle, data_aug_func_list, group_datas_annotations2inputs_outputs, seed=10086, **kwargs):
         """
         :param batch_size: int, size of batch data
         :param shuffle: bool, shuffle data on epoch end
         :param data_aug_func_list: list, list of the data augmentation functions, take (data, annotation) as input and return (data, annotation) after augmentation
-        :param group_datas2inputs: function, change the format of a group of datas to the input data for training model
-        :param group_annotations2outputs: function, change the format of a group of annotations to the output label for training model
+        :param group_datas_annotations2inputs_outputs: function, change the format of a group of datas and annotations to the input data and target outputs for training model
         :param seed: random seed
         :param kwargs: args to initial the keras.utils.Sequence class
         """
@@ -21,8 +20,8 @@ class DetectionDataGenerator(keras.utils.Sequence):
         self.shuffle             = shuffle
         self.data_aug_func_list  = data_aug_func_list
         self.seed                = seed
-        self.group_datas2inputs       = group_datas2inputs
-        self.group_annotations2outputs = group_annotations2outputs
+
+        self.group_datas_annotations2inputs_outputs = group_datas_annotations2inputs_outputs
 
         # used to index label idx and label name
         self._class_name2idx = {}
@@ -105,8 +104,7 @@ class DetectionDataGenerator(keras.utils.Sequence):
                 group_datas[idx] = data
                 group_annotations[idx] = annotations
 
-        inputs  = self.group_datas2inputs(group_datas, group_annotations)
-        outputs = self.group_annotations2outputs(group_datas, group_annotations)
+        inputs, outputs  = self.group_datas_annotations2inputs_outputs(group_datas, group_annotations)
 
         return inputs, outputs
 

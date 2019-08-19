@@ -146,7 +146,6 @@ def FasterRCNNComponents(
         model_params               = model_params,
         name                       = name,
     )
-
     return backbone.model, rpn_model, faster_rcnn_model
 
 
@@ -180,32 +179,36 @@ if __name__ == '__main__':
 
     faster_rcnn_regressions, faster_rcnn_classifications = faster_rcnn_model([backbone_outputs, rpn_proposal_bboxes])
 
-    rpn_model_training = rpn_model
+    rpn_model_training = keras.models.Model(
+        inputs=image_inputs,
+        outputs=[rpn_regressions, rpn_classifications],
+        name='rpn_model_training'
+    )
 
-    faster_rcnn_model_training_1 = keras.models.Model(
+    frcnn_model_training_1 = keras.models.Model(
         inputs=[image_inputs, proposal_bbox_inputs],
         outputs=[faster_rcnn_regressions_from_input_box, faster_rcnn_classifications_from_input_box],
-        name='faster_rcnn_model_training_1'
+        name='frcnn_model_training_1'
     )
 
-    faster_rcnn_model_training_2 = keras.models.Model(
+    frcnn_model_training_2 = keras.models.Model(
         inputs=image_inputs,
         outputs=[faster_rcnn_regressions, faster_rcnn_classifications],
-        name='faster_rcnn_model_training_2'
+        name='frcnn_model_training_2'
     )
 
-    faster_rcnn_model_inference = FasterRCNNInferenceModel(
+    frcnn_model_inference = FasterRCNNInferenceModel(
         image_inputs=image_inputs,
         rpn_proposal_bboxes = rpn_proposal_bboxes,
         faster_rcnn_regressions=faster_rcnn_regressions,
         faster_rcnn_classifications=faster_rcnn_classifications,
-        name='faster_rcnn_inference'
+        name='frcnn_model_inference'
     )
 
     print(rpn_model_training.summary())
-    print(faster_rcnn_model_training_1.summary())
-    print(faster_rcnn_model_training_2.summary())
-    print(faster_rcnn_model_inference.summary())
+    print(frcnn_model_training_1.summary())
+    print(frcnn_model_training_2.summary())
+    print(frcnn_model_inference.summary())
 
 
 
