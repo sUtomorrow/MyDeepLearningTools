@@ -9,7 +9,6 @@ import numpy as np
 
 default_anchor_params = {
     'sizes': [128],
-    'strides': [32],
     'ratios': [0.5, 1, 2.0],
     'scales': [0.5, 1., 2.0]
 }

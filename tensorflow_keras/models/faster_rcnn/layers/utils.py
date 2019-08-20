@@ -35,7 +35,7 @@ class Label(keras.layers.Layer):
         """inputs is the classification predict in one-hot: [batch_size, N, class_num]
         return the max index as label
         """
-        labels = tf.argmax(inputs, dimension=-1, name='labels')
+        labels = tf.argmax(inputs, axis=-1, name='labels')
         return labels
 
     def compute_output_shape(self, input_shape):
