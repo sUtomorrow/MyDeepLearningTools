@@ -9,3 +9,4 @@ from .bounding_box import BoundingBox
 from .bbox_proposal import BboxProposal
 from .utils import BoxClip, Label, Score
 from .rescale import Rescale
+from .target_layers import RpnTarget, FrcnnTarget

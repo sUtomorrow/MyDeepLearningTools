@@ -95,10 +95,12 @@ def bboxes2targets(positive_iou=0.5, negative_iou=0.3, class_num=2):
 
         """
         prior_anchors: [N, 4], [x1, y1, x2, y2]
-        bboxes: [M, 4], [x1, y1, x2, y2]
-        labels: [M], label idx list
+        bboxes: [M, 5], [x1, y1, x2, y2, padding_status]
+        labels: [M, 2], [label idx, padding_status]
         """
         prior_anchors, gt_bboxes, gt_class_idxes = inputs
+        gt_bboxes = remove_pad(gt_bboxes)
+        gt_class_idxes = remove_pad(gt_class_idxes)[:, 0]
         # the last axis is output status: -1 for ignore, 1 for positive, 0 for negative
         regression_targets = tf.zeros(shape=(tf.shape(prior_anchors)[0], 4 + 1), dtype=keras.backend.floatx())
         classification_targets = tf.zeros(shape=(tf.shape(prior_anchors)[0], class_num + 1), dtype=keras.backend.floatx())
@@ -124,22 +126,20 @@ def bboxes2targets(positive_iou=0.5, negative_iou=0.3, class_num=2):
 
 
 class RpnTarget(keras.layers.Layer):
-    def __init__(self, positive_iou, negative_iou, feature_levels, **kwargs):
+    def __init__(self, positive_iou, negative_iou, **kwargs):
         self.positive_iou = positive_iou
         self.negative_iou = negative_iou
-        self.feature_levels = feature_levels
         self.bboxes2targets = bboxes2targets(self.positive_iou, self.negative_iou, 1)
         super(RpnTarget, self).__init__(**kwargs)
 
     def call(self, inputs, **kwargs):
         """
             prior_anchors: [B, N, 4], [x1, y1, x2, y2]
-            gt_bboxes: [B, M, 4], [x1, y1, x2, y2]
-            gt_class_idxes: [B, M], label idx
+            gt_bboxes: [B, M, 5], [x1, y1, x2, y2]
+            gt_class_idxes: [B, 2], label idx
         """
         prior_anchors, gt_bboxes, gt_class_idxes = inputs
-        gt_bboxes = remove_pad(gt_bboxes)
-        gt_class_idxes = remove_pad(gt_class_idxes)[:, 0]
+
         gt_class_idxes = tf.zeros_like(gt_class_idxes) # all gt is foreground, class index is 0
 
         regression_targets, classification_targets = tf.map_fn(self.bboxes2targets, (prior_anchors, gt_bboxes, gt_class_idxes), dtype=(keras.backend.floatx(), keras.backend.floatx()))
@@ -152,10 +152,9 @@ class RpnTarget(keras.layers.Layer):
 
 
 class FrcnnTarget(keras.layers.Layer):
-    def __init__(self, positive_iou, negative_iou, feature_levels, class_num, **kwargs):
+    def __init__(self, positive_iou, negative_iou, class_num, **kwargs):
         self.positive_iou = positive_iou
         self.negative_iou = negative_iou
-        self.feature_levels = feature_levels
         self.class_num = class_num
         self.bboxes2targets = bboxes2targets(self.positive_iou, self.negative_iou, self.class_num)
         super(FrcnnTarget, self).__init__(**kwargs)
@@ -163,12 +162,10 @@ class FrcnnTarget(keras.layers.Layer):
     def call(self, inputs, **kwargs):
         """
             proposal_bboxes: [B, N, 4], [x1, y1, x2, y2]
-            gt_bboxes: [B, M, 4], [x1, y1, x2, y2]
-            gt_class_idxes: [B, M], label idx
+            gt_bboxes: [B, M, 5], [x1, y1, x2, y2]
+            gt_class_idxes: [B, 2], label idx
         """
         proposal_bboxes, gt_bboxes, gt_class_idxes = inputs
-        gt_bboxes = remove_pad(gt_bboxes)
-        gt_class_idxes = remove_pad(gt_class_idxes)[:, 0]
 
         regression_targets, classification_targets = tf.map_fn(self.bboxes2targets, (proposal_bboxes, gt_bboxes, gt_class_idxes), dtype=(keras.backend.floatx(), keras.backend.floatx()))
 

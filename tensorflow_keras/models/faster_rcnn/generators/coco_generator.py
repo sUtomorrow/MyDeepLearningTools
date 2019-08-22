@@ -5,8 +5,9 @@
 
 import os
 import cv2
+from copy import deepcopy
 from pycocotools.coco import COCO
-from ....generators import DetectionDataGenerator
+from .DetectionDataGenerator import DetectionDataGenerator
 
 class CocoGenerator(DetectionDataGenerator):
     def __init__(self, data_dir, annotation_file_path, **kwargs):
@@ -18,7 +19,7 @@ class CocoGenerator(DetectionDataGenerator):
 
     def _parse_data_from_coco(self):
         print('parsing data from coco')
-        image_infos = [self.coco.loadImgs(img_id) for img_id in sorted(self.coco.getImgIds())]
+        image_infos = [self.coco.loadImgs(img_id)[0] for img_id in sorted(self.coco.getImgIds())]
         image_path_list = [] # [os.path.join(self.data_dir, image_info['file_name']) for image_info in image_infos]
         annotations_list = []
         class_idx2name = {}
@@ -30,20 +31,21 @@ class CocoGenerator(DetectionDataGenerator):
             }
             coco_annotationIds = self.coco.getAnnIds(imgIds=image_info['id'])
             coco_annotations = self.coco.loadAnns(coco_annotationIds)
+            if len(coco_annotations) == 0:
+                continue
             image_path_list.append(os.path.join(self.data_dir, image_info['file_name']))
             for coco_annotation in coco_annotations:
-
                 if coco_annotation['bbox'][2] < 1 or coco_annotation['bbox'][3] < 1:
                     # skip some invalid annotation
                     continue
 
-                x1 = coco_annotation['bbox'][0] - coco_annotation['bbox'][2] / 2
-                y1 = coco_annotation['bbox'][1] - coco_annotation['bbox'][3] / 2
+                x1 = coco_annotation['bbox'][0]
+                y1 = coco_annotation['bbox'][1]
                 x2 = x1 + coco_annotation['bbox'][2]
                 y2 = y1 + coco_annotation['bbox'][3]
 
                 class_idx = coco_annotation['category_id'] - 1
-                class_name = self.coco.loadCats(ids=coco_annotation['category_id'])[0]
+                class_name = self.coco.loadCats(ids=coco_annotation['category_id'])[0]['name']
                 if class_idx not in class_idx2name:
                     class_idx2name[class_idx] = class_name
 
@@ -66,7 +68,4 @@ class CocoGenerator(DetectionDataGenerator):
         return img
 
     def load_annotations(self, data_idx):
-        return self.annotations_list[data_idx]
-
-
-
+        return deepcopy(self.annotations_list[data_idx])
