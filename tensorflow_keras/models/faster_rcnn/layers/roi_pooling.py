@@ -63,6 +63,7 @@ class RoiPooling(keras.layers.Layer):
         def pooling_area(x):
             return tf.reduce_max(roi_region[x[0] : x[2], x[1] : x[3], :], axis = [0, 1])
 
+        areas = tf.stop_gradient(areas)
         pooling_result = tf.map_fn(pooling_area, areas, dtype=tf.float32)
 
         pooling_result = tf.reshape(pooling_result, (pooling_h, pooling_w, feature_map_c))

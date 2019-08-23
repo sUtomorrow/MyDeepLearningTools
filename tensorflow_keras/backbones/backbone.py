@@ -54,8 +54,9 @@ class Backbone(object):
         """
         raise NotImplementedError('validate method not implemented.')
 
-    def preprocess_image(self, inputs):
+    @staticmethod
+    def image_preprocess_func(backbone_name):
         """Takes as input an image and prepares it for being passed through the network.
         Having this function in Backbone allows other backbones to define a specific preprocessing step.
         """
-        raise NotImplementedError('preprocess_image method not implemented.')
+        raise NotImplementedError('image_preprocess method not implemented.')

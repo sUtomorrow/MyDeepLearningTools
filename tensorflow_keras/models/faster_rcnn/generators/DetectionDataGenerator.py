@@ -7,19 +7,19 @@ import numpy as np
 import keras
 
 class DetectionDataGenerator(keras.utils.Sequence):
-    def __init__(self, batch_size, shuffle, data_aug_func_list, group_datas_annotations2inputs_outputs, seed=10086, **kwargs):
+    def __init__(self, batch_size, shuffle, data_process_func_list, group_datas_annotations2inputs_outputs, seed=10086, **kwargs):
         """
         :param batch_size: int, size of batch data
         :param shuffle: bool, shuffle data on epoch end
-        :param data_aug_func_list: list, list of the data augmentation functions, take (data, annotation) as input and return (data, annotation) after augmentation
+        :param data_process_func_list: list, list of the data augmentation functions, take (data, annotation) as input and return (data, annotation) after augmentation
         :param group_datas_annotations2inputs_outputs: function, change the format of a group of datas and annotations to the input data and target outputs for training model
         :param seed: random seed
         :param kwargs: args to initial the keras.utils.Sequence class
         """
-        self.batch_size          = batch_size
-        self.shuffle             = shuffle
-        self.data_aug_func_list  = data_aug_func_list
-        self.seed                = seed
+        self.batch_size              = batch_size
+        self.shuffle                 = shuffle
+        self.data_process_func_list  = data_process_func_list
+        self.seed                    = seed
 
         self.group_datas_annotations2inputs_outputs = group_datas_annotations2inputs_outputs
 
@@ -97,14 +97,14 @@ class DetectionDataGenerator(keras.utils.Sequence):
         group_datas = self.load_group_datas(group_idx)
         group_annotations = self.load_group_annotations(group_idx)
 
-        if self.data_aug_func_list is not None:
+        if self.data_process_func_list is not None:
             for idx, (data, annotations) in enumerate(zip(group_datas, group_annotations)):
-                for data_aug_func in self.data_aug_func_list:
-                    data, annotations = data_aug_func(data, annotations)
+                for data_process_func in self.data_process_func_list:
+                    data, annotations = data_process_func(data, annotations)
                 group_datas[idx] = data
                 group_annotations[idx] = annotations
 
-        inputs, outputs = self.group_datas_annotations2inputs_outputs(group_datas, group_annotations)
+        inputs, outputs  = self.group_datas_annotations2inputs_outputs(group_datas, group_annotations)
 
         return inputs, outputs
 

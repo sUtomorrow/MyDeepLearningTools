@@ -29,6 +29,8 @@ def focal(alpha=0.25, gamma=2.0):
         Returns
             The focal loss of y_pred w.r.t. y_true.
         """
+        print(y_true.shape)
+        print(y_pred.shape)
         labels         = y_true[:, :, :-1]
         anchor_state   = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
         classification = y_pred

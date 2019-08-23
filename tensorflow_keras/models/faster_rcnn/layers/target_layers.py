@@ -99,26 +99,47 @@ def bboxes2targets(positive_iou=0.5, negative_iou=0.3, class_num=2):
         labels: [M, 2], [label idx, padding_status]
         """
         prior_anchors, gt_bboxes, gt_class_idxes = inputs
+        print(prior_anchors.shape)
+        print(gt_bboxes.shape)
+        print(gt_class_idxes.shape)
         gt_bboxes = remove_pad(gt_bboxes)
         gt_class_idxes = remove_pad(gt_class_idxes)[:, 0]
-        # the last axis is output status: -1 for ignore, 1 for positive, 0 for negative
-        regression_targets = tf.zeros(shape=(tf.shape(prior_anchors)[0], 4 + 1), dtype=keras.backend.floatx())
-        classification_targets = tf.zeros(shape=(tf.shape(prior_anchors)[0], class_num + 1), dtype=keras.backend.floatx())
 
         iou_matrix = iou(prior_anchors, gt_bboxes) # [N, M]
+
+        print('iou_matrix.shape', iou_matrix.shape)
+
         anchors_max_iou = tf.reduce_max(iou_matrix, axis=-1)
         anchor_max_bbox_indexes = tf.argmax(iou_matrix, axis=-1)
-        positive_indices = tf.where(anchors_max_iou >= positive_iou, 1, 0)
-        ignore_indices = tf.where((anchors_max_iou >= negative_iou) & ~positive_indices, 1, 0)
-        positive_bbox_indices = anchor_max_bbox_indexes[positive_indices]
 
-        regression_targets[:, :-1] = bbox_transform(prior_anchors, gt_bboxes[positive_bbox_indices, :])
-        regression_targets[positive_indices, -1] = 1
+        positive_status = anchors_max_iou >= positive_iou
+        ignore_status = (anchors_max_iou >= negative_iou) & ~positive_status
 
-        classification_targets[positive_indices, gt_class_idxes[positive_bbox_indices]] = 1
+        positive_indices = tf.where(positive_status)
+        ignore_indices = tf.where(ignore_status)
 
-        regression_targets[ignore_indices, -1] = -1
-        classification_targets[ignore_indices, -1] = -1
+        print('positive_indices.shape', positive_indices.shape)
+        print('ignore_indices.shape', ignore_indices.shape)
+
+        # positive_bbox_indices = tf.gather(anchor_max_bbox_indexes, positive_indices)
+        #
+        # print('positive_bbox_indices.shape', positive_bbox_indices.shape)
+
+        regression_targets = bbox_transform(prior_anchors, tf.gather(gt_bboxes, anchor_max_bbox_indexes))
+        targets_status = tf.expand_dims(tf.where(
+            positive_status,
+            tf.ones(tf.shape(prior_anchors)[0]),
+            tf.where(
+                ignore_status,
+                tf.ones(tf.shape(prior_anchors)[0]) * -1,
+                tf.zeros(tf.shape(prior_anchors)[0])
+            )), axis=-1)
+
+        classification_targets = tf.one_hot(tf.cast(tf.gather(gt_class_idxes, anchor_max_bbox_indexes), 'int32'), depth=class_num)
+        # classification_targets[positive_indices, gt_class_idxes[positive_bbox_indices]] = 1
+
+        regression_targets = tf.concat([regression_targets, targets_status], axis=-1)
+        classification_targets = tf.concat([classification_targets, targets_status], axis=-1)
 
         return (regression_targets, classification_targets)
 

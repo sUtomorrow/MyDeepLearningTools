@@ -25,11 +25,11 @@ class BboxProposal(keras.layers.Layer):
 
             return bboxes
 
-        scores = classifications[:, :, 1] # the last dimension of classifications is in one-hot: [background, foreground]
+        foreground_scores = classifications[:, :, 0] # the last dimension of classifications is the probability of foreground
 
         bboxes = tf.map_fn(
             _nms,
-            elems=[scores, bboxes],
+            elems=[foreground_scores, bboxes],
             dtype=tf.float32
         )
         return bboxes
@@ -49,12 +49,12 @@ if __name__ == '__main__':
 
     bbox_np = np.array([[[0, 0, 20, 20], [0, 0, 20, 10], [0, 0, 50, 60], [0, 0, 40, 30]], [[0, 0, 20, 10], [0, 0, 30, 20], [0, 0, 50, 50], [0, 0, 100, 20]]], dtype=np.float32)
 
-    classification_np = np.array([[[0.1, 0.9], [0.4, 0.6], [0.7, 0.3], [0.2, 0.8]], [[0.1, 0.9], [0.4, 0.6], [0.7, 0.3], [0.2, 0.8]]], dtype=np.float32)
+    classification_np = np.array([[[0.9], [0.6], [0.3], [0.8]], [[0.9], [0.6], [0.3], [0.8]]], dtype=np.float32)
 
 
     with tf.Session() as session:
         bbox_tf = tf.placeholder(tf.float32, shape=[None, None, 4])
-        classification_tf = tf.placeholder(tf.float32, shape=[None, None, 2])
+        classification_tf = tf.placeholder(tf.float32, shape=[None, None, 1])
 
         bbox_proposal = BboxProposal(bbox_num=4, nms_threshold=0.3)([classification_tf, bbox_tf])
         result = session.run(bbox_proposal, feed_dict={bbox_tf: bbox_np, classification_tf:classification_np})

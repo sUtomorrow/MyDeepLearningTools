@@ -73,11 +73,14 @@ class VggBackbone(Backbone):
     def load_weights(self, weight_path, by_name=True):
         self._model.load_weights(weight_path, by_name)
 
-    def preprocess_image(self, inputs):
-        if self.backbone_name == 'vgg16':
-            return vgg16.preprocess_input(inputs)
-        elif self.backbone_name == 'vgg19':
-            return vgg19.preprocess_input(inputs)
+    @staticmethod
+    def image_preprocess_func(backbone_name):
+        def _image_preprocess_func(inputs):
+            if backbone_name == 'vgg16':
+                return vgg16.preprocess_input(inputs)
+            elif backbone_name == 'vgg19':
+                return vgg19.preprocess_input(inputs)
+        return _image_preprocess_func
 
 if __name__ == '__main__':
     # test backbone

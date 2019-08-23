@@ -19,7 +19,7 @@ def show_data(data_generator, with_annotatins=True):
     for i in range(len(data_generator)):
         inputs, targets = data_generator[i]
         for batch_idx in range(len(inputs['image_inputs'])):
-            image = cv2.cvtColor(inputs['image_inputs'][0], cv2.COLOR_RGB2BGR)
+            image = cv2.cvtColor(inputs['image_inputs'][batch_idx], cv2.COLOR_RGB2BGR)
             if with_annotatins:
                 image = draw_bboxes(image, inputs['gt_boxes_inputs'][batch_idx])
             cv2.imshow('image', image)

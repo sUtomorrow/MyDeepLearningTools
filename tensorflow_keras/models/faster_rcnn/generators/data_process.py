@@ -365,3 +365,9 @@ def resize_image_func(d_size=(512, 512), interpolation='linear'):
             annotations['bboxes'][index][3] *= fy
         return data, annotations
     return _resize_image_func
+
+def image_process_func(image_process):
+    def _image_process_func(data, annotations):
+        data = image_process(data)
+        return data, annotations
+    return _image_process_func
