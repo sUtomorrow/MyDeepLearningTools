@@ -159,8 +159,18 @@ def FasterRcnn(config, train=False, imagenet_backbone=False, backbone_weights=No
         rcnn_weights=rcnn_weights,
     )
 
+    backbone_model = backbone.model
+    return_list = [backbone.image_preprocess_func, backbone_model, rpn_model, rcnn_model]
+
+    multi_gpu = len(config['gpu'].split(','))
+    if multi_gpu > 1:
+        from keras.utils import multi_gpu_model
+        backbone_model = multi_gpu_model(backbone_model, gpus=multi_gpu)
+        rpn_model = multi_gpu_model(rpn_model, gpus=multi_gpu)
+        rcnn_model = multi_gpu_model(rcnn_model, gpus=multi_gpu)
+
     print('backbone:')
-    backbone.model.summary()
+    backbone_model.summary()
     print('rpn_model:')
     rpn_model.summary()
     print('rcnn_model:')
@@ -168,14 +178,15 @@ def FasterRcnn(config, train=False, imagenet_backbone=False, backbone_weights=No
 
     image_inputs = keras.layers.Input(shape=config['model_params']['ImageInputShape'], name='image_inputs')
 
-    backbone_outputs = backbone.model(image_inputs)
+    backbone_outputs = backbone_model(image_inputs)
     rpn_regressions, rpn_classifications, rpn_proposal_bboxes, prior_anchor = rpn_model([image_inputs, backbone_outputs[-1]])
     frcnn_regressions, frcnn_classifications = rcnn_model([backbone_outputs[-1], rpn_proposal_bboxes])
 
     faster_rcnn_inference = FasterRCNNInferenceModel(image_inputs, rpn_proposal_bboxes, frcnn_regressions, frcnn_classifications)
     print('faster_rcnn_inference:')
     faster_rcnn_inference.summary()
-    return_list = [backbone, rpn_model, rcnn_model, faster_rcnn_inference]
+
+    return_list.append(faster_rcnn_inference)
 
     if train:
         gt_boxes_inputs = keras.layers.Input(shape=(None, 5), name='gt_boxes_inputs')

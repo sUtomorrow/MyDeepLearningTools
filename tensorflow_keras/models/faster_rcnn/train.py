@@ -33,8 +33,8 @@ train_config = {
         'RegionProposalFilters': 512,
         'ClassNum': 2,
     },
-    'gpu'              : '2',
-    'imagenet_backbone': False, # load backbone weight with imagenet pretrain
+    'gpu'              : '4,5',
+    'imagenet_backbone': True, # load backbone weight with imagenet pretrain
     'backbone_weights'  : None, # load backbone weight from a file path, and ignore imagenet pretrain weight, if None: do not load
     'rpn_weights'       : None, # load rpn weigth from a file path, if None: do not load
     'rcnn_weights'     : None, # load faster-rcnn weight from a file path, if None: do not load
@@ -66,7 +66,7 @@ train_config = {
 def get_session():
     """ Construct a modified tf session.
     """
-    config = tf.ConfigProto()
+    config = tf.ConfigProto(allow_soft_placement = True)
     config.gpu_options.allow_growth = True
     return tf.Session(config=config)
 
@@ -110,7 +110,7 @@ if __name__ == '__main__':
         os.environ['CUDA_VISIBLE_DEVICES'] = train_config['gpu']
         keras.backend.tensorflow_backend.set_session(get_session())
 
-        backbone, rpn_model, rcnn_model, faster_rcnn_inference, faster_rcnn_training = FasterRcnn(
+        image_preprocess_func, backbone_model, rpn_model, rcnn_model, faster_rcnn_inference, faster_rcnn_training = FasterRcnn(
             config=train_config,
             train=True,
             imagenet_backbone=train_config['imagenet_backbone'],
@@ -148,10 +148,10 @@ if __name__ == '__main__':
 
         train_data_process_func_list = [data_aug_func(transform_generator, 'linear', 'constant', 0.),
                                     resize_image_func(train_config['model_params']['ImageInputShape'][:2], 'linear'),
-                                    image_process_func(backbone.image_preprocess_func(train_config['model_params']['BackboneName']))]
+                                    image_process_func(image_preprocess_func(train_config['model_params']['BackboneName']))]
 
         valid_data_process_func_list = [resize_image_func(train_config['model_params']['ImageInputShape'][:2], 'linear'),
-                                    image_process_func(backbone.image_preprocess_func(train_config['model_params']['BackboneName']))]
+                                    image_process_func(image_preprocess_func(train_config['model_params']['BackboneName']))]
 
         train_generator = CocoGenerator(
             data_dir=train_config['train_data_dir'],
