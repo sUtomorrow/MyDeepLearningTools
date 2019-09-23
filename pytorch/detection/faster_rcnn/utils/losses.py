@@ -16,8 +16,8 @@ def smooth_l1(regression, regression_target, sigma=1.0):
     weight = regression_target[:, :, -1]
     regression_target = regression_target[:, :, :-1]
 
-    batch_size = regression.size(0)
-    regression = regression.view(batch_size, -1, 4)
+    # batch_size = regression.size(0)
+    # regression = regression.view(batch_size, -1, 4)
 
     # weight     = weight.view(batch_size, -1)
     # regression_target = regression_target.view(batch_size, -1, 4)
@@ -39,9 +39,9 @@ def cross_entropy_loss(classification, classification_target):
     :return: cross entropy loss
     """
     # batch_size     = classification.size(0)
-    classification = classification.view(-1, 2)
+    classification = classification.contigous().view(-1, 2)
 
-    weight                = classification_target[:, :, 1]
+    weight                = classification_target[:, :, 1].contigous().view(-1)
     classification_target = classification_target[:, :, 0].contigous().view(-1)
 
     loss = torch.nn.functional.cross_entropy(classification, classification_target, reduction='none').reshape_as(weight)

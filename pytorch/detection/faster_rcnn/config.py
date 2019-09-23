@@ -8,8 +8,9 @@ valid_backbone = ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 class Config(object):
     backbone_name           = 'resnet101'
     backbone_output_channel = 2048
-    anchor_sizes            = [64, 128, 256]   # the base anchor sizes
-    anchor_ratios           = [0.5, 1., 2.]    # the ratios of w:h for each anchor size
+    backbone_pretrain       = True               # load the backbone model weights pre-train on ImageNet
+    anchor_sizes            = [64]#, 128, 256]   # the base anchor sizes
+    anchor_ratios           = [0.5]#, 1., 2.]    # the ratios of w:h for each anchor size
     roi_pooling_size        = (6, 6)           # output size of roi pooling or roi align
     roi_align               = True             # if use roi align
     use_feature_levels      = [5,]             # features levels to use, only support 5
@@ -38,6 +39,7 @@ class Config(object):
 
     def check_params(self):
         assert (self.backbone_name in valid_backbone, 'backbone {} not supported, only support backbone in {}'.format(self.backbone_name, valid_backbone))
+
         assert (self.anchor_max_positive_num is None or self.anchor_max_positive_num > 0,
                'the anchor_max_positive_num should be positive number or None, but get anchor_max_positive_num={}'.format(
                    self.anchor_max_positive_num))

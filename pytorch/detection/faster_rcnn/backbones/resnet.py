@@ -148,6 +148,7 @@ class ResNet(nn.Module):
 
 class ResNetBackbone(Backbone):
     def __init__(self, backbone_name, zero_init_residual=False):
+        super(ResNetBackbone, self).__init__()
         if backbone_name == 'resnet18':
             block, layers = BasicBlock, [2, 2, 2, 2]
         elif backbone_name == 'resnet34':
@@ -160,7 +161,7 @@ class ResNetBackbone(Backbone):
             block, layers = Bottleneck, [3, 8, 36, 3]
         else:
             raise NotImplementedError('the backbone {} not implemented'.format(backbone_name))
-
+        self.backbone_name   = backbone_name
         self._feature_levels = [2, 3, 4, 5]
         self.inplanes = 64
         self.conv1   = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -189,7 +190,7 @@ class ResNetBackbone(Backbone):
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
 
-        super(ResNetBackbone, self).__init__()
+
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -231,5 +232,7 @@ class ResNetBackbone(Backbone):
             weights_url = model_urls[self.backbone_name]
         else:
             raise NotImplementedError('the backbone {} not implemented'.format(self.backbone_name))
+        state_dict = model_zoo.load_url(weights_url, model_dir)
 
-        self.load_state_dict(model_zoo.load_url(weights_url, model_dir))
+        # print('state_dict.keys()', state_dict.keys())
+        self.load_state_dict({key:value for key,value in state_dict.items() if 'fc' not in key})

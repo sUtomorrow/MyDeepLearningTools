@@ -68,7 +68,7 @@ def _bbox_transform_inv(anchors, regressions):
     by2 = by1 + bh
     return [bx1, by1, bx2, by2]
     """
-
+    # TODO: coordinate of axis error
     anchor_x = (anchors[:, :, 2] + anchors[:, :, 0]) / 2
     anchor_y = (anchors[:, :, 3] + anchors[:, :, 1]) / 2
 
@@ -85,7 +85,7 @@ def _bbox_transform_inv(anchors, regressions):
     bbox_x2 = bbox_x1 + bbox_w
     bbox_y2 = bbox_y1 + bbox_h
 
-    return torch.stack([bbox_x1, bbox_y1, bbox_x2, bbox_y2], axis=-1)
+    return torch.stack([bbox_x1, bbox_y1, bbox_x2, bbox_y2], dim=-1)
 
 
 def overlaps(bboxes1, bboxes2):
@@ -154,7 +154,7 @@ class AnchorTargetLayer(torch.nn.Module):
             anchors        : with shape (A, 4), (x1, y1, x2, y2), the anchor for each point
             batch_gt_boxes : with shape (BatchSize, max_target_number, 4), (x1, y1, x2, y2)
             batch_labels   : with shape (BatchSize, max_target_number), contain the label id for boxes
-        :return: [(A, 5), (A, 2)] regression target and classification target
+        :return: [(B, A, 5), (B, A, 2)] regression target and classification target
         """
         anchors, batch_gt_boxes, batch_labels = input
         #TODO: to compute the target for rpn
@@ -228,16 +228,18 @@ class RPN(torch.nn.Module):
         super(RPN, self).__init__()
 
         self.conv1 = torch.nn.Conv2d(in_channel, filters, kernel_size=(3, 3), padding=(1, 1), stride=(1, 1))
-        # self.relu = torch.nn.ReLU(inplace=True)
+        self.relu = torch.nn.ReLU(inplace=True)
         # background and foreground
-        self.classification = torch.nn.Conv2d(filters, anchor_num * 2, kernel_size=(1, 1), padding=(1, 1), stride=(1, 1))
-        # self.sigmoid = torch.nn.Sigmoid()
+        self.classification = torch.nn.Conv2d(filters, anchor_num * 2, kernel_size=(1, 1), padding=0, stride=(1, 1))
+        self.softmax = torch.nn.Softmax(dim=1)
         # 4 values for each anchor
-        self.regression = torch.nn.Conv2d(filters, anchor_num * 4, kernel_size=(1, 1), padding=(1, 1), stride=(1, 1))
+        self.regression = torch.nn.Conv2d(filters, anchor_num * 4, kernel_size=(1, 1), padding=0, stride=(1, 1))
         self.anchor_target_layer = AnchorTargetLayer(anchor_positive_threshold,
                                                      anchor_negative_threshold,
                                                      max_positive_anchors,
                                                      max_negative_anchors)
+
+
 
     def forward(self, *input):
         if self.training:
@@ -245,20 +247,21 @@ class RPN(torch.nn.Module):
         else:
             batch_gt_boxes = batch_labels = None
             feature, anchors = input[:2]
-        
         l = self.conv1(feature)
         l = self.relu(l)
         classification = self.classification(l)
-        # classification = self.sigmoid(classification)
+        scores         = self.softmax(classification)
         regression     = self.regression(l)
+
         # regression     = self.relu(regression)
-        
+        regression = regression.permute(0, 2, 3, 1).contiguous().view(regression.size(0), -1, 4)
+        classification = classification.permute(0, 2, 3, 1).contiguous().view(classification.size(0), -1, 2)
         bboxes = _bbox_transform_inv(anchors, regression)
         
         if self.training:
             regression_target, classification_target = self.anchor_target_layer(anchors, batch_gt_boxes, batch_labels)
             regression_loss     = smooth_l1(regression, regression_target)
             classification_loss = cross_entropy_loss(classification, classification_target)
-            return classification, bboxes, regression_loss, classification_loss
+            return bboxes, scores, regression_loss, classification_loss
         else:
-            return classification, bboxes, 0, 0
+            return bboxes, scores

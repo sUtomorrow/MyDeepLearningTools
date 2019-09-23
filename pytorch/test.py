@@ -9,16 +9,22 @@ import torch
 #
 # print(indices)
 
-indices = torch.zeros((2, 5), dtype=torch.long)
-
-a = torch.rand((2, 3))
-
+indices = torch.zeros((2, 2), dtype=torch.long)
+#
+a = torch.rand((2, 2, 3))
+#
 print(a)
 print(-torch.log(torch.nn.functional.softmax(a, dim=-1)))
 l = torch.nn.functional.cross_entropy(a, indices, reduction='none')
 print(l)
 
-# b = torch.rand((10, 4))
+# print([1, 2, 3, 4].index(10))
+
+# b = torch.rand((4, 4))
+#
+# print(b)
+# c = b[:, :2].contiguous().view(8)
+# print(c)
 #
 # print(b)
 
