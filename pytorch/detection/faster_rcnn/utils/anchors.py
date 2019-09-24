@@ -39,7 +39,7 @@ def anchor_shift(anchors, feature_size, stride):
     tl_coordinate = grid - anchors / 2
     br_coordinate = tl_coordinate + anchors
     anchors = np.concatenate([tl_coordinate, br_coordinate], axis=-1)
-    return np.reshape(anchors, (1, height * width * anchors.shape[2], -1))
+    return np.reshape(anchors, (height * width * anchors.shape[2], -1))
 
 if __name__ == '__main__':
     """test anchor generate"""

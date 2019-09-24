@@ -117,32 +117,115 @@ class FasterRcnn(torch.nn.Module):
 
 if __name__ == '__main__':
     """test Faster Rcnn with only rpn"""
-
-    # print(__package__)
-
     import os
+    from .generators.data_process import random_transform_generator, data_aug_func, resize_image_func, image_process_func
+    from .generators.coco_generator import CocoGenerator
+    from .generators.utils import data_annotations2input_outputs
+    from torch.utils.data import DataLoader
+    from torchvision import transforms
+
     os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
-    device = torch.device('cuda:0')
+    DEVICE = torch.device('cuda:0')
 
     test_config = Config()
     frcnn = FasterRcnn(test_config)
 
-    # frcnn = torch.nn.DataParallel(frcnn)
+    BATCH_SIZE = 16
+    frcnn.to(DEVICE)
 
-    frcnn.to(device)
-
-    frcnn.eval()
-
-    # print(frcnn.rpn.regression.weight)
+    # frcnn.eval()
 
     print('start run')
 
-    for i in range(3):
-        batch_image = torch.rand((2, 3, 64, 64))
-        # print(batch_image.mean())
-        batch_image = batch_image.to(device)
-        print('iter:', i, frcnn(batch_image))
+    optimizer = torch.optim.Adam(frcnn.parameters(), lr=0.001)
+
+    transform_generator = random_transform_generator(
+        rotation_ratio=0.5,
+        min_rotation=-0.2,
+        max_rotation=0.2,
+        translation_ratio=0.5,
+        min_translation=(-0.1, -0.1),
+        max_translation=(0.1, 0.1),
+        shear_ratio=0.5,
+        min_shear=-0.2,
+        max_shear=0.2,
+        scaling_ratio=0.5,
+        min_scaling=(0.9, 0.9),
+        max_scaling=(1.1, 1.1),
+        flip_x_ratio=0.5,
+        flip_y_ratio=0.,
+        prng=None
+    )
+
+    train_data_process_func_list = [data_aug_func(transform_generator, 'linear', 'constant', 0.),
+                                    resize_image_func((448, 448), 'linear'),
+                                    image_process_func(transforms.ToTensor()),
+                                    image_process_func(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])),
+                                    ]
+
+    valid_data_process_func_list = [resize_image_func((448, 448), 'linear'),
+                                    image_process_func(transforms.ToTensor()),
+                                    image_process_func(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])),
+                                    ]
+
+    train_generator = CocoGenerator(
+        data_dir='/mnt/data4/lty/data/coco/train2017',
+        annotation_file_path='/mnt/data4/lty/data/coco/annotations/instances_train2017.json',
+        data_process_func_list=train_data_process_func_list,
+        data_annotations2input_outputs=data_annotations2input_outputs(max_gts=test_config.max_target_num_per_image),
+    )
+    valid_generator = CocoGenerator(
+        data_dir='/mnt/data4/lty/data/coco/val2017',
+        annotation_file_path='/mnt/data4/lty/data/coco/annotations/instances_val2017.json',
+        data_process_func_list=valid_data_process_func_list,
+        data_annotations2input_outputs=data_annotations2input_outputs(max_gts=test_config.max_target_num_per_image),
+    )
+
+    train_data_loader = DataLoader(train_generator, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+
+    valid_data_loader = DataLoader(valid_generator, batch_size=1, shuffle=True, num_workers=4)
+
+    # nllloss = torch.nn.NLLLoss()
+
+    for epoch in range(50):
+        frcnn.train()
+        for batch_idx, (data, batch_gt_boxes, batch_labels) in enumerate(train_data_loader):
+            data, batch_gt_boxes, batch_labels = data.to(DEVICE), batch_gt_boxes.to(DEVICE), batch_labels.to(DEVICE)
+            optimizer.zero_grad()
+            rpn_bboxes_list, rpn_scores_list, rpn_regression_loss, rpn_classification_loss = frcnn(data, batch_gt_boxes, batch_labels)
+            loss = rpn_regression_loss + rpn_classification_loss
+            loss.backward()
+            optimizer.step()
+            if (batch_idx + 1) % 20 == 0:
+                print('epoch{}: {}/{}, loss:{}, reg loss: {}, cls loss:{}'.format(epoch, (batch_idx + 1) * BATCH_SIZE, len(train_data_loader.dataset),
+                                                       loss.item(), rpn_regression_loss.item(), rpn_classification_loss.item()))
+            if batch_idx == 100:
+                break
+        # frcnn.eval()
+        test_loss = 0
+        reg_loss = 0
+        cls_loss = 0
+        correct = 0
+
+        with torch.no_grad():
+            for data, batch_gt_boxes, batch_labels in valid_data_loader:
+                data, batch_gt_boxes, batch_labels = data.to(DEVICE), batch_gt_boxes.to(DEVICE), batch_labels.to(DEVICE)
+                rpn_bboxes_list, rpn_scores_list, rpn_regression_loss, rpn_classification_loss = frcnn(data, batch_gt_boxes, batch_labels)
+                test_loss += rpn_regression_loss + rpn_classification_loss
+                reg_loss += rpn_regression_loss
+                cls_loss += rpn_classification_loss
+
+            test_loss /= len(valid_data_loader)
+            reg_loss  /= len(valid_data_loader)
+            cls_loss  /= len(valid_data_loader)
+            print('epoch{}: test loss: {}, reg loss: {}, cls loss:{}'.format(epoch, test_loss.item(), reg_loss.item(), cls_loss.item()))
+
+    # for i in range(3):
+    #     batch_image = torch.rand((2, 3, 64, 64))
+    #     # print(batch_image.mean())
+    #     batch_image = batch_image.to(device)
+    #     print('iter:', i, frcnn(batch_image))
 
     # print(frcnn)
 

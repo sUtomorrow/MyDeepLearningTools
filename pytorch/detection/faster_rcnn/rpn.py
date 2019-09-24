@@ -45,12 +45,12 @@ def _bbox_transform(anchors, gt_boxes):
     tw = torch.log(bw / aw)
     th = torch.log(bh / ah)
 
-    return torch.stack([tx, ty, tw, th], axis=-1)
+    return torch.stack([tx, ty, tw, th], dim=-1)
 
 def _bbox_transform_inv(anchors, regressions):
     """
     transform regression back to bbox by anchors
-    :param anchors:    [x1, y1, x2, y2]
+    :param anchors:     [x1, y1, x2, y2]
     :param regressions: [tx, ty, tw, th]
     ax = (x1 + x2) / 2
     ay = (y1 + y2) / 2
@@ -94,12 +94,15 @@ def overlaps(bboxes1, bboxes2):
     :param bboxes2: [x1, y1, x2, y2] with shape:(N, 4)
     :return: overlaps with shape: (M, N)
     """
-    N = bboxes1.size(0)
-    M = bboxes2.size(0)
+    M = bboxes1.size(0)
+    N = bboxes2.size(0)
 
     # reshape for broadcast
-    bboxes1 = torch.repeat(torch.unsqueeze(bboxes1, 1), (1, N, 1))
-    bboxes2 = torch.repeat(torch.unsqueeze(bboxes2, 0), (M, 1, 1))
+    bboxes1 = bboxes1.unsqueeze(1).repeat(1, N, 1)
+    bboxes2 = bboxes2.unsqueeze(0).repeat(M, 1, 1)
+
+    # print('bboxes1.size', bboxes1.size())
+    # print('bboxes2.size', bboxes2.size())
 
     inter_x1 = torch.max(bboxes1[:, :, 0], bboxes2[:, :, 0])
     inter_x2 = torch.min(bboxes1[:, :, 2], bboxes2[:, :, 2])
@@ -143,7 +146,7 @@ class AnchorTargetLayer(torch.nn.Module):
         super(AnchorTargetLayer, self).__init__()
 
         self.anchor_positive_threshold = anchor_positive_threshold
-        self.anchor_nagetive_threshold = anchor_negative_threshold
+        self.anchor_negative_threshold = anchor_negative_threshold
 
         self.max_positive_anchors = max_positive_anchors
         self.max_negative_anchors = max_negative_anchors
@@ -159,8 +162,8 @@ class AnchorTargetLayer(torch.nn.Module):
         anchors, batch_gt_boxes, batch_labels = input
         #TODO: to compute the target for rpn
         batch_size = batch_gt_boxes.size(0)
-        regression_target     = torch.zeros((batch_size, anchors.size(0), 5)) # [tx, ty, tw, th, weight]
-        classification_target = torch.zeros((batch_size, anchors.size(0), 2)) # [background, foreground, weight]
+        regression_target     = torch.zeros((batch_size, anchors.size(0), 5), device=batch_gt_boxes.get_device()) # [tx, ty, tw, th, weight]
+        classification_target = torch.zeros((batch_size, anchors.size(0), 2), dtype=torch.long, device=batch_gt_boxes.get_device()) # [background, foreground, weight]
         for batch_idx in range(batch_size):
             # compute target for each batch data
             gt_boxes = batch_gt_boxes[batch_idx]
@@ -176,7 +179,8 @@ class AnchorTargetLayer(torch.nn.Module):
             if gt_box_number == 0:
                 # skip if there is no target
                 continue
-
+            # print('anchors.size', anchors.size())
+            # print('gt_boxes.size', gt_boxes.size())
             ious = overlaps(anchors, gt_boxes)
 
             max_anchor_ious, anchor_max_iou_gt_box_indices = torch.max(ious, 1)
@@ -242,6 +246,11 @@ class RPN(torch.nn.Module):
 
 
     def forward(self, *input):
+        """
+
+        :param input:
+        :return:
+        """
         if self.training:
             feature, anchors, batch_gt_boxes, batch_labels = input
         else:
@@ -256,7 +265,7 @@ class RPN(torch.nn.Module):
         # regression     = self.relu(regression)
         regression = regression.permute(0, 2, 3, 1).contiguous().view(regression.size(0), -1, 4)
         classification = classification.permute(0, 2, 3, 1).contiguous().view(classification.size(0), -1, 2)
-        bboxes = _bbox_transform_inv(anchors, regression)
+        bboxes = _bbox_transform_inv(anchors.unsqueeze(0), regression)
         
         if self.training:
             regression_target, classification_target = self.anchor_target_layer(anchors, batch_gt_boxes, batch_labels)

@@ -5,7 +5,7 @@
 
 import torch
 
-def smooth_l1(regression, regression_target, sigma=1.0):
+def smooth_l1(regression, regression_target, sigma=0.1):
     """
     :param regression: the regression value of model with shape (BatchSize, H, W, A*4), [tx, ty, tw, th]
     :param regression_target: the regression target with shape (BatchSize, H*W*A, 5), [tx, ty, tw, th, weight]
@@ -27,7 +27,10 @@ def smooth_l1(regression, regression_target, sigma=1.0):
     smooth_sign = (abs_diff < 1. / sigma).float()
     loss = (torch.pow(diff, 2) * (sigma / 2) * smooth_sign + (abs_diff - sigma / 2) * (1. - smooth_sign))
     loss = loss.sum(2) * weight
-    loss = loss.mean(1)
+
+    norm = torch.tensor(max(weight.nonzero().size(0), 1), dtype=loss.dtype)
+
+    loss = loss.sum(1) / norm
     loss = loss.mean()
     return loss
 
@@ -39,14 +42,15 @@ def cross_entropy_loss(classification, classification_target):
     :return: cross entropy loss
     """
     # batch_size     = classification.size(0)
-    classification = classification.contigous().view(-1, 2)
+    classification = classification.contiguous().view(-1, 2)
 
-    weight                = classification_target[:, :, 1].contigous().view(-1)
-    classification_target = classification_target[:, :, 0].contigous().view(-1)
+    weight                = classification_target[:, :, 1].contiguous().view(-1)
+    classification_target = classification_target[:, :, 0].contiguous().view(-1)
 
     loss = torch.nn.functional.cross_entropy(classification, classification_target, reduction='none').reshape_as(weight)
-    loss *= weight
-    loss = loss.mean()
+    loss *= weight.type_as(loss)
+    norm = torch.tensor(max(weight.nonzero().size(0), 1), dtype=loss.dtype)
+    loss = loss.sum() / norm
     return loss
 
 

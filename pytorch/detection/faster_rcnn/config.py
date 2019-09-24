@@ -6,18 +6,18 @@
 valid_backbone = ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
 class Config(object):
-    backbone_name           = 'resnet101'
+    backbone_name           = 'resnet50'
     backbone_output_channel = 2048
     backbone_pretrain       = True               # load the backbone model weights pre-train on ImageNet
-    anchor_sizes            = [64]#, 128, 256]   # the base anchor sizes
-    anchor_ratios           = [0.5]#, 1., 2.]    # the ratios of w:h for each anchor size
+    anchor_sizes            = [64, 128, 256]   # the base anchor sizes
+    anchor_ratios           = [0.5, 1., 2.]    # the ratios of w:h for each anchor size
     roi_pooling_size        = (6, 6)           # output size of roi pooling or roi align
     roi_align               = True             # if use roi align
     use_feature_levels      = [5,]             # features levels to use, only support 5
     rpn_filters             = 256              # the output channel of conv1 in rpn
 
-    anchor_positive_threshold = 0.5         # iou threshold to decide an anchor is positive(greater or equal)
-    anchor_negative_threshold = 0.2         # iou threshold to decide an anchor is negative(less or equal)
+    anchor_positive_threshold = 0.3         # iou threshold to decide an anchor is positive(greater or equal)
+    anchor_negative_threshold = 0.1         # iou threshold to decide an anchor is negative(less or equal)
     anchor_max_positive_num   = 100         # max number of positive anchor in one image, if None: no limit
     anchor_max_nagetive_num   = 300         # max number of negative anchor in one image, if None: no limit
 
