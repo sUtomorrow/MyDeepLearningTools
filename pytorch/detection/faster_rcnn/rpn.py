@@ -134,22 +134,22 @@ def overlaps(bboxes1, bboxes2):
 
 
 class AnchorTargetLayer(torch.nn.Module):
-    def __init__(self, anchor_positive_threshold, anchor_negative_threshold, max_positive_anchors, max_negative_anchors):
+    def __init__(self, positive_anchor_threshold, negative_anchor_threshold, max_positive_anchor, max_negative_anchor_ratio):
         """
         compute the rpn target by anchor and feature map
 
-        :param anchor_positive_threshold: iou threshold to decide an anchor is positive(greater or equal)
-        :param anchor_negative_threshold: iou threshold to decide an anchor is negative(less or equal)
-        :param max_positive_anchors:      max number of positive anchor in one image, if None: no limit
-        :param max_negative_anchors:      max number of negative anchor in one image, if None: no limit
+        :param positive_anchor_threshold: iou threshold to decide an anchor is positive(greater or equal)
+        :param negative_anchor_threshold: iou threshold to decide an anchor is negative(less or equal)
+        :param max_positive_anchor     : max number of positive anchor in one image, if None: no limit
+        :param max_negative_anchor_ratio: max ratio, negative anchor number : positive anchor number, if None: no limit
         """
         super(AnchorTargetLayer, self).__init__()
 
-        self.anchor_positive_threshold = anchor_positive_threshold
-        self.anchor_negative_threshold = anchor_negative_threshold
+        self.positive_anchor_threshold = positive_anchor_threshold
+        self.negative_anchor_threshold = negative_anchor_threshold
 
-        self.max_positive_anchors = max_positive_anchors
-        self.max_negative_anchors = max_negative_anchors
+        self.max_positive_anchor       = max_positive_anchor
+        self.max_negative_anchor_ratio = max_negative_anchor_ratio
 
     def forward(self, *input):
         """
@@ -185,65 +185,68 @@ class AnchorTargetLayer(torch.nn.Module):
 
             max_anchor_ious, anchor_max_iou_gt_box_indices = torch.max(ious, 1)
 
-            positive_anchor_mask    = max_anchor_ious >= self.anchor_positive_threshold
-            negative_anchor_mask    = max_anchor_ious <= self.anchor_negative_threshold
+            positive_anchor_mask    = max_anchor_ious >= self.positive_anchor_threshold
+            negative_anchor_mask    = max_anchor_ious <= self.negative_anchor_threshold
             positive_anchor_indices = torch.nonzero(positive_anchor_mask)
             negative_anchor_indices = torch.nonzero(negative_anchor_mask)
             # ignore_anchor_indices   = torch.nonzero(~(positive_anchor_mask | negative_anchor_mask))
 
-            if positive_anchor_indices.size(0) > self.max_positive_anchors:
-                # random choice to filter the positive anchor with max positive number
-                indices = torch.randperm(positive_anchor_indices.size(0))
-                positive_anchor_indices = positive_anchor_indices[indices[:self.max_positive_anchors]]
+            if self.max_positive_anchor:
+                if positive_anchor_indices.size(0) > self.max_positive_anchor:
+                    # random choice to filter the positive anchor with max positive number
+                    indices = torch.randperm(positive_anchor_indices.size(0))
+                    positive_anchor_indices = positive_anchor_indices[indices[:self.max_positive_anchor]]
 
-            if negative_anchor_indices.size(0) > self.max_negative_anchors:
-                # random choice to filter the negative anchor with max negative number
-                indices = torch.randperm(negative_anchor_indices.size(0))
-                negative_anchor_indices = negative_anchor_indices[indices[:self.max_negative_anchors]]
+            if self.max_negative_anchor_ratio:
+                max_negative_anchors = int(self.max_negative_anchor_ratio * len(positive_anchor_indices))
+
+                if negative_anchor_indices.size(0) > max_negative_anchors:
+                    # random choice to filter the negative anchor with max negative number
+                    indices = torch.randperm(negative_anchor_indices.size(0))
+                    negative_anchor_indices = negative_anchor_indices[indices[:max_negative_anchors]]
 
             # compute all anchor regression targets
             anchor_regression_target = _bbox_transform(anchors, gt_boxes[anchor_max_iou_gt_box_indices])
 
             # assign weight for anchors, default 0 for ignore this anchor
-            regression_target[batch_idx, positive_anchor_mask, -1] = 1
+            regression_target[batch_idx, positive_anchor_indices, -1] = 1
 
-            classification_target[batch_idx, positive_anchor_mask, -1] = 1
+            classification_target[batch_idx, positive_anchor_indices, -1] = 1
             classification_target[batch_idx, negative_anchor_indices, -1] = 1
 
             # assign regression target and classification target
             regression_target[batch_idx, positive_anchor_indices, :-1] = anchor_regression_target[positive_anchor_indices, :]
-            classification_target[batch_idx, negative_anchor_indices, 0] = 1  # rpn use label idx 1 as classification target for foreground
+            classification_target[batch_idx, positive_anchor_indices, 0] = 1  # rpn use label idx 1 as classification target for foreground
+            # classification_target[batch_idx, negative_anchor_indices, 0] = 0 # do not need assign value
         return [regression_target, classification_target]
         
 
 class RPN(torch.nn.Module):
     def __init__(self, in_channel, filters, anchor_num,
-                 anchor_positive_threshold, anchor_negative_threshold, max_positive_anchors, max_negative_anchors):
+                 positive_anchor_threshold, negative_anchor_threshold, max_positive_anchor, max_negative_anchor_ratio):
         """
         the rpn model for faster rcnn
         :param in_channel:                the channel of input feature map
         :param filters:                   the channel of convolution layer in rpn
         :param anchor_num:                amount of anchors for each point
-        :param anchor_positive_threshold: iou threshold to decide an anchor is positive(greater or equal)
-        :param anchor_negative_threshold: iou threshold to decide an anchor is negative(less or equal)
-        :param max_positive_anchors:      max number of positive anchor in one image, if None: no limit
-        :param max_negative_anchors:      max number of negative anchor in one image, if None: no limit
+        :param positive_anchor_threshold: iou threshold to decide an anchor is positive(greater or equal)
+        :param negative_anchor_threshold: iou threshold to decide an anchor is negative(less or equal)
+        :param max_positive_anchor     : max number of positive anchor in one image, if None: no limit
+        :param max_negative_anchor_ratio: max ratio, negative anchor number : positive anchor number, if None: no limit
         """
         super(RPN, self).__init__()
-
+        self.anchor_num = anchor_num
         self.conv1 = torch.nn.Conv2d(in_channel, filters, kernel_size=(3, 3), padding=(1, 1), stride=(1, 1))
         self.relu = torch.nn.ReLU(inplace=True)
         # background and foreground
-        self.classification = torch.nn.Conv2d(filters, anchor_num * 2, kernel_size=(1, 1), padding=0, stride=(1, 1))
-        self.softmax = torch.nn.Softmax(dim=1)
+        self.classification = torch.nn.Conv2d(filters, self.anchor_num * 2, kernel_size=(1, 1), padding=0, stride=(1, 1))
+        # self.softmax = torch.nn.Softmax(dim=1)
         # 4 values for each anchor
-        self.regression = torch.nn.Conv2d(filters, anchor_num * 4, kernel_size=(1, 1), padding=0, stride=(1, 1))
-        self.anchor_target_layer = AnchorTargetLayer(anchor_positive_threshold,
-                                                     anchor_negative_threshold,
-                                                     max_positive_anchors,
-                                                     max_negative_anchors)
-
-
+        self.regression = torch.nn.Conv2d(filters, self.anchor_num * 4, kernel_size=(1, 1), padding=0, stride=(1, 1))
+        self.anchor_target_layer = AnchorTargetLayer(positive_anchor_threshold,
+                                                     negative_anchor_threshold,
+                                                     max_positive_anchor,
+                                                     max_negative_anchor_ratio)
 
     def forward(self, *input):
         """
@@ -258,19 +261,18 @@ class RPN(torch.nn.Module):
             feature, anchors = input[:2]
         l = self.conv1(feature)
         l = self.relu(l)
-        classification = self.classification(l)
-        scores         = self.softmax(classification)
-        regression     = self.regression(l)
-
-        # regression     = self.relu(regression)
-        regression = regression.permute(0, 2, 3, 1).contiguous().view(regression.size(0), -1, 4)
-        classification = classification.permute(0, 2, 3, 1).contiguous().view(classification.size(0), -1, 2)
-        bboxes = _bbox_transform_inv(anchors.unsqueeze(0), regression)
+        classifications = self.classification(l)
+        regressions     = self.regression(l)
         
+        # regression     = self.relu(regression)
+        regressions = regressions.permute(0, 2, 3, 1).contiguous().view(regressions.size(0), -1, 4)
+        classifications = classifications.permute(0, 2, 3, 1).contiguous().view(classifications.size(0), -1, 2)
+        bboxes = _bbox_transform_inv(anchors.unsqueeze(0), regressions)
+
         if self.training:
             regression_target, classification_target = self.anchor_target_layer(anchors, batch_gt_boxes, batch_labels)
-            regression_loss     = smooth_l1(regression, regression_target)
-            classification_loss = cross_entropy_loss(classification, classification_target)
-            return bboxes, scores, regression_loss, classification_loss
+            regression_loss     = smooth_l1(regressions, regression_target)
+            classification_loss = cross_entropy_loss(classifications, classification_target)
+            return bboxes, classifications, regression_loss, classification_loss
         else:
-            return bboxes, scores
+            return bboxes, classifications

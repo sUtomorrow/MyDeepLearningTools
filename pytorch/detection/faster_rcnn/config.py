@@ -16,13 +16,12 @@ class Config(object):
     use_feature_levels      = [5,]             # features levels to use, only support 5
     rpn_filters             = 256              # the output channel of conv1 in rpn
 
-    anchor_positive_threshold = 0.3         # iou threshold to decide an anchor is positive(greater or equal)
-    anchor_negative_threshold = 0.1         # iou threshold to decide an anchor is negative(less or equal)
-    anchor_max_positive_num   = 100         # max number of positive anchor in one image, if None: no limit
-    anchor_max_nagetive_num   = 300         # max number of negative anchor in one image, if None: no limit
+    positive_anchor_threshold = 0.3         # iou threshold to decide an anchor is positive(greater or equal)
+    negative_anchor_threshold = 0.1         # iou threshold to decide an anchor is negative(less or equal)
+    max_positive_anchor_num   = 100         # max number of positive anchor in one image, if None: no limit
+    max_negative_anchor_ratio = 3.0         # max ratio, negative anchor number : positive anchor number, if None: no limit
 
     max_target_num_per_image  = 100         # to pack the label and box to batch box and batch label, should padding
-
 
     def __init__(self, **kwargs):
         for key, value in kwargs:
@@ -36,16 +35,22 @@ class Config(object):
         elif 'resnet' in self.backbone_name:
             self.backbone_output_channel = 2048
 
-
     def check_params(self):
         assert (self.backbone_name in valid_backbone, 'backbone {} not supported, only support backbone in {}'.format(self.backbone_name, valid_backbone))
 
-        assert (self.anchor_max_positive_num is None or self.anchor_max_positive_num > 0,
+        assert (self.max_positive_anchor_num is None or self.max_positive_anchor_num > 0,
                'the anchor_max_positive_num should be positive number or None, but get anchor_max_positive_num={}'.format(
-                   self.anchor_max_positive_num))
-        assert (self.anchor_negative_threshold is None or self.anchor_negative_threshold > 0,
+                   self.max_positive_anchor_num))
+        assert (self.max_negative_anchor_ratio is None or self.max_negative_anchor_ratio > 0,
+                'the anchor_max_negative_ratio should be positive float or None, but get anchor_max_negative_ratio={}'.format(
+                    self.max_negative_anchor_ratio))
+
+        assert (self.negative_anchor_threshold is None or self.negative_anchor_threshold > 0,
                 'the anchor_nagetive_threshold should be positive number or None, but get anchor_nagetive_threshold={}'.format(
-                    self.anchor_negative_threshold))
+                    self.negative_anchor_threshold))
+        assert (self.positive_anchor_threshold is None or self.positive_anchor_threshold > 0,
+                'the anchor_positive_threshold should be positive number or None, but get anchor_positive_threshold={}'.format(
+                    self.positive_anchor_threshold))
         assert (self.max_target_num_per_image is not None and self.max_target_num_per_image > 0,
                 'the max_target_num_per_image should be positive number, but get max_target_num_per_image={}'.format(
                     self.max_target_num_per_image))

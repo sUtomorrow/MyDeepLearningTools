@@ -54,10 +54,10 @@ class FasterRcnn(torch.nn.Module):
             config.backbone_output_channel,
             config.rpn_filters,
             config.anchor_num,
-            config.anchor_positive_threshold,
-            config.anchor_negative_threshold,
-            config.anchor_max_positive_num,
-            config.anchor_max_nagetive_num
+            config.positive_anchor_threshold,
+            config.negative_anchor_threshold,
+            config.max_positive_anchor_num,
+            config.max_negative_anchor_ratio
         )
 
     def forward(self, *input):
@@ -87,32 +87,48 @@ class FasterRcnn(torch.nn.Module):
 
         if self.training:
             rpn_bboxes_list              = []
-            rpn_scores_list              = []
+            rpn_classifications_list     = []
             rpn_regression_loss_list     = []
             rpn_classification_loss_list = []
             for feature, anchors in zip(feature_list, anchors_list):
                 # use rpn to get proposal bbox for each feature level
-                rpn_bboxes, rpn_scores, rpn_regression_loss, rpn_classification_loss = self.rpn(
+                rpn_bboxes, rpn_classifications, rpn_regression_loss, rpn_classification_loss = self.rpn(
                     feature, anchors, batch_gt_boxes, batch_labels)
                 rpn_bboxes_list.append(rpn_bboxes)
-                rpn_scores_list.append(rpn_scores)
+                rpn_classifications_list.append(rpn_classifications)
                 rpn_regression_loss_list.append(rpn_regression_loss)
                 rpn_classification_loss_list.append(rpn_classification_loss)
 
-            # total loss is the average of losses in each feature level
-            rpn_regression_loss     = torch.stack(rpn_regression_loss_list).mean()
-            rpn_classification_loss = torch.stack(rpn_classification_loss_list).mean()
-            return rpn_bboxes_list, rpn_scores_list, rpn_regression_loss, rpn_classification_loss
+            if len(rpn_bboxes_list) > 1:
+                rpn_bboxes              = torch.cat(rpn_bboxes_list, dim=1)
+                rpn_classifications     = torch.cat(rpn_classifications_list, dim=1)
+                # total loss is the average of losses in each feature level
+                rpn_regression_loss     = torch.stack(rpn_regression_loss_list).mean()
+                rpn_classification_loss = torch.stack(rpn_classification_loss_list).mean()
+            else:
+                rpn_bboxes              = rpn_bboxes_list[0]
+                rpn_classifications     = rpn_classifications_list[0]
+                rpn_regression_loss     = rpn_regression_loss_list[0]
+                rpn_classification_loss = rpn_classification_loss_list[0]
+
+            return rpn_bboxes, rpn_classifications, rpn_regression_loss, rpn_classification_loss
         else:
-            rpn_bboxes_list = []
-            rpn_scores_list = []
+            rpn_bboxes_list          = []
+            rpn_classifications_list = []
             for feature, anchors in zip(feature_list, anchors_list):
                 # use rpn to get proposal bbox for each feature level
                 # there is no rpn loss for eval mode
-                rpn_bboxes, rpn_classification = self.rpn(feature, anchors, batch_gt_boxes, batch_labels)[:2]
+                rpn_bboxes, rpn_classifications = self.rpn(feature, anchors, batch_gt_boxes, batch_labels)[:2]
                 rpn_bboxes_list.append(rpn_bboxes)
-                rpn_scores_list.append(rpn_classification)
-            return rpn_bboxes_list, rpn_scores_list
+                rpn_classifications_list.append(rpn_classifications)
+
+            if len(rpn_bboxes_list) > 1:
+                rpn_bboxes          = torch.cat(rpn_bboxes_list, dim=1)
+                rpn_classifications = torch.cat(rpn_classifications_list, dim=1)
+            else:
+                rpn_bboxes          = rpn_bboxes_list[0]
+                rpn_classifications = rpn_classifications_list[0]
+            return rpn_bboxes, rpn_classifications
 
 
 if __name__ == '__main__':
@@ -121,10 +137,11 @@ if __name__ == '__main__':
     from .generators.data_process import random_transform_generator, data_aug_func, resize_image_func, image_process_func
     from .generators.coco_generator import CocoGenerator
     from .generators.utils import data_annotations2input_outputs
+    from .utils.callbacks import EvaluateRPN
     from torch.utils.data import DataLoader
     from torchvision import transforms
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     DEVICE = torch.device('cuda:0')
 
@@ -184,51 +201,19 @@ if __name__ == '__main__':
 
     train_data_loader = DataLoader(train_generator, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
-    valid_data_loader = DataLoader(valid_generator, batch_size=1, shuffle=True, num_workers=4)
-
-    # nllloss = torch.nn.NLLLoss()
+    valid_data_loader = DataLoader(valid_generator, batch_size=1, shuffle=False, num_workers=4)
 
     for epoch in range(50):
         frcnn.train()
         for batch_idx, (data, batch_gt_boxes, batch_labels) in enumerate(train_data_loader):
             data, batch_gt_boxes, batch_labels = data.to(DEVICE), batch_gt_boxes.to(DEVICE), batch_labels.to(DEVICE)
             optimizer.zero_grad()
-            rpn_bboxes_list, rpn_scores_list, rpn_regression_loss, rpn_classification_loss = frcnn(data, batch_gt_boxes, batch_labels)
+            rpn_bboxes, rpn_classifications, rpn_regression_loss, rpn_classification_loss = frcnn(data, batch_gt_boxes, batch_labels)
             loss = rpn_regression_loss + rpn_classification_loss
             loss.backward()
             optimizer.step()
-            if (batch_idx + 1) % 20 == 0:
+            if (batch_idx + 1) % 100 == 0:
                 print('epoch{}: {}/{}, loss:{}, reg loss: {}, cls loss:{}'.format(epoch, (batch_idx + 1) * BATCH_SIZE, len(train_data_loader.dataset),
                                                        loss.item(), rpn_regression_loss.item(), rpn_classification_loss.item()))
-            if batch_idx == 100:
-                break
-        # frcnn.eval()
-        test_loss = 0
-        reg_loss = 0
-        cls_loss = 0
-        correct = 0
-
-        with torch.no_grad():
-            for data, batch_gt_boxes, batch_labels in valid_data_loader:
-                data, batch_gt_boxes, batch_labels = data.to(DEVICE), batch_gt_boxes.to(DEVICE), batch_labels.to(DEVICE)
-                rpn_bboxes_list, rpn_scores_list, rpn_regression_loss, rpn_classification_loss = frcnn(data, batch_gt_boxes, batch_labels)
-                test_loss += rpn_regression_loss + rpn_classification_loss
-                reg_loss += rpn_regression_loss
-                cls_loss += rpn_classification_loss
-
-            test_loss /= len(valid_data_loader)
-            reg_loss  /= len(valid_data_loader)
-            cls_loss  /= len(valid_data_loader)
-            print('epoch{}: test loss: {}, reg loss: {}, cls loss:{}'.format(epoch, test_loss.item(), reg_loss.item(), cls_loss.item()))
-
-    # for i in range(3):
-    #     batch_image = torch.rand((2, 3, 64, 64))
-    #     # print(batch_image.mean())
-    #     batch_image = batch_image.to(device)
-    #     print('iter:', i, frcnn(batch_image))
-
-    # print(frcnn)
-
-
-
-
+                rpn_average_precision, test_loss, reg_loss, cls_loss = EvaluateRPN(frcnn, valid_data_loader, device=DEVICE)
+                print('average precision: {}, test loss: {}, reg loss: {}, cls loss:{}'.format(rpn_average_precision, test_loss, reg_loss, cls_loss))

@@ -9,14 +9,17 @@ import torch
 #
 # print(indices)
 
-indices = torch.zeros((2, 2), dtype=torch.long)
+indices = torch.zeros((2), dtype=torch.long)
 #
-a = torch.rand((2, 2, 3))
+a = torch.rand((4, 2, 4))
+
+print(torch.nonzero(a))
+
 #
-print(a)
-print(-torch.log(torch.nn.functional.softmax(a, dim=-1)))
-l = torch.nn.functional.cross_entropy(a, indices, reduction='none')
-print(l)
+# print(a)
+# print(-torch.log(torch.nn.functional.softmax(a, dim=-1)))
+# l = torch.nn.functional.cross_entropy(a, indices, reduction='none')
+# print(l)
 
 # print([1, 2, 3, 4].index(10))
 
