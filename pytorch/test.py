@@ -4,16 +4,31 @@
 # @File     : test
 
 import torch
+import numpy as np
+from detection.faster_rcnn.utils.nms import _C
+
+bbox_np = np.array([[0, 0, 20, 20], [0, 0, 20, 10], [0, 0, 50, 60], [0, 0, 40, 30]], dtype=np.float32)
+
+score_np = np.array([0.9, 0.6, 0.3, 0.8], dtype=np.float32)
+
+bboxes = torch.from_numpy(bbox_np)
+scores = torch.from_numpy(score_np)
+
+
+indices = _C.nms(bboxes, scores, 0.5)
+
+print(bboxes[indices, :])
+print(scores[indices])
 
 # indices = torch.randperm(3)
 #
 # print(indices)
 
-indices = torch.zeros((2), dtype=torch.long)
+# indices = torch.zeros((2), dtype=torch.long)
+# #
+# a = torch.rand((4, 2, 4))
 #
-a = torch.rand((4, 2, 4))
-
-print(torch.nonzero(a))
+# print(torch.nonzero(a))
 
 #
 # print(a)

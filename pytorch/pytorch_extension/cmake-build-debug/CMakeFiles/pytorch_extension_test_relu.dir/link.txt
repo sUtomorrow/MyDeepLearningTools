@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/pytorch_extension_test_relu.dir/test_relu/test_relu.cpp.o CMakeFiles/pytorch_extension_test_relu.dir/test_relu/cpu/test_relu_cpu.cpp.o  -o pytorch_extension_test_relu 

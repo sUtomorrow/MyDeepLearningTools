@@ -45,6 +45,10 @@ class DetectionDataGenerator(Dataset):
         else:
             return False
 
+    @property
+    def num_classes(self):
+        return len(self._class_idx2name.keys())
+
     def class_name2idx(self, class_name):
         return self._class_name2idx[class_name]
 

@@ -18,6 +18,18 @@ class Backbone(torch.nn.Module):
         """
         return self._feature_levels
 
+    @property
+    def roi_conv_layer(self):
+        """return the layer to convolution on rois
+        """
+        return eval('self.' + self._roi_conv_layer)
+
+    @property
+    def roi_conv_scale(self):
+        """return the down sample times in roi convolution layer
+        """
+        return self._roi_conv_scale
+
     def load_pretrain(self, model_dir):
         """load pretrain model
         """

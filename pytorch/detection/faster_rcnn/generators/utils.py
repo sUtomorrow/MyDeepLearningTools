@@ -41,7 +41,7 @@ import cv2
 #             return {'image_inputs': image_inputs}, None
 #     return _group_datas_annotations2inputs_outputs
 
-def data_annotations2input_outputs(max_gts=200, convert_ndarray=False):
+def data_annotations2input_outputs(max_gts=100, convert_ndarray=False):
     def _data_annotations2input_outputs(data, annotations):
         if convert_ndarray:
             image_inputs = np.array(data)

@@ -162,7 +162,7 @@ class ResNetBackbone(Backbone):
         else:
             raise NotImplementedError('the backbone {} not implemented'.format(backbone_name))
         self.backbone_name   = backbone_name
-        self._feature_levels = [2, 3, 4, 5]
+        self._feature_levels = [2, 3, 4]#, 5]
         self.inplanes = 64
         self.conv1   = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1     = nn.BatchNorm2d(64)
@@ -172,6 +172,9 @@ class ResNetBackbone(Backbone):
         self.layer2  = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3  = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4  = self._make_layer(block, 512, layers[3], stride=2)
+
+        self._roi_conv_layer = 'layer4'
+        self._roi_conv_scale = 2
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -189,7 +192,6 @@ class ResNetBackbone(Backbone):
                     nn.init.constant_(m.bn3.weight, 0)
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
-
 
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -221,13 +223,12 @@ class ResNetBackbone(Backbone):
         outputs.append(x)
         x = self.layer3(x)
         outputs.append(x)
-        x = self.layer4(x)
-        outputs.append(x)
 
-        # return C2, C3, C4, C5
+        # return C2, C3, C4
         return outputs
 
     def load_pretrain(self, model_dir=None):
+
         if self.backbone_name in model_urls:
             weights_url = model_urls[self.backbone_name]
         else:

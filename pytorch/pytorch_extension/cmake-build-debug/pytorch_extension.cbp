@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="pytorch_extension"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension/fast">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension/fast"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension_nms">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension_nms" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension_nms"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension_nms/fast">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension_nms" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension_nms/fast"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension_test_relu">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension_test_relu" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension_test_relu"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pytorch_extension_test_relu/fast">
+				<Option output="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/pytorch_extension_test_relu" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include"/>
+					<Add directory="/home/lty/.conda/envs/pytorch10/lib/python3.6/site-packages/torch/lib/include/torch/csrc/api/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 pytorch_extension_test_relu/fast"/>
+					<CompileFile command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j56 -f &quot;/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/nms/cpu/nms_cpu.cpp">
+			<Option target="pytorch_extension_nms"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/nms/cpu/nms_cpu.h">
+			<Option target="pytorch_extension_nms"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/pytorch_extension_main.cpp">
+			<Option target="pytorch_extension"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/test_relu/cpu/test_relu_cpu.cpp">
+			<Option target="pytorch_extension_test_relu"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/test_relu/cpu/test_relu_cpu.h">
+			<Option target="pytorch_extension_test_relu"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/test_relu/cuda/test_relu_cuda.cu">
+			<Option target="pytorch_extension_test_relu"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/test_relu/cuda/test_relu_cuda.h">
+			<Option target="pytorch_extension_test_relu"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/test_relu/test_relu.cpp">
+			<Option target="pytorch_extension_test_relu"/>
+		</Unit>
+		<Unit filename="/home/lty/Code/MyDeepLearningTools/pytorch/pytorch_extension/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

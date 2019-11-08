@@ -5,6 +5,7 @@
 
 import numpy as np
 import torch
+import cv2
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -73,63 +74,85 @@ def compute_overlap(boxes, query_boxes):
 
 
 
-def EvaluateRPN(model, data_loader, device, iou_threshold=0.3, score_threshold=0.05, max_detections=100, random_valid_samples=500):
-    generator = data_loader.dataset
+def Evaluate(model, generator, device, num_classes, iou_threshold=0.5, score_threshold=0.05, max_detections=100, random_valid_samples=500, verbose=False):
     with torch.no_grad():
         test_loss = 0
+        rpn_reg_loss = 0
+        rpn_cls_loss = 0
         reg_loss = 0
         cls_loss = 0
-
-        random_valid_idx_list = np.random.choice(len(generator), size=random_valid_samples, replace=False)
-
-        all_detections = [[None for _ in range(1)] for _ in range(len(random_valid_idx_list))]
-        all_annotations = [[None for _ in range(1)] for _ in range(len(random_valid_idx_list))]
-
+        if random_valid_samples:
+            random_valid_idx_list = np.random.choice(len(generator), size=random_valid_samples, replace=False)
+        else:
+            random_valid_idx_list = [i for i in range(len(generator))]
+        all_detections = [[None for _ in range(num_classes)] for _ in range(len(random_valid_idx_list))]
+        all_annotations = [[None for _ in range(num_classes)] for _ in range(len(random_valid_idx_list))]
         for i, valid_idx in enumerate(random_valid_idx_list):
             data, batch_gt_boxes, batch_labels = generator[valid_idx]
 
             data = data.unsqueeze(0).to(device)
-            batch_gt_boxes = torch.tensor(batch_gt_boxes, device=device).unsqueeze(0)
-            batch_labels = torch.tensor(batch_labels, device=device).unsqueeze(0)
-            rpn_bboxes, rpn_classifications, rpn_regression_loss, rpn_classification_loss = model(data, batch_gt_boxes, batch_labels)
-            rpn_scores, rpn_labels = torch.max(rpn_classifications, dim=2)
+            batch_gt_boxes = torch.from_numpy(batch_gt_boxes).unsqueeze(0).to(device)
+            batch_labels = torch.from_numpy(batch_labels).unsqueeze(0).to(device).long()
+            bboxes, scores, labels, rpn_regression_loss, rpn_classification_loss, regression_loss, classification_loss = model(data, batch_gt_boxes, batch_labels)
 
-            bboxes = rpn_bboxes.cpu().numpy() # [x1, y1, x2, y2]
-            scores = rpn_scores.cpu().numpy() # scores
-            labels = rpn_labels.cpu().numpy() # 1 for foreground, 0 for background
+            bboxes = bboxes.cpu().numpy() # [x1, y1, x2, y2]
+            scores = scores.cpu().numpy() # scores
+            labels = labels.cpu().numpy()
 
             # only deal with foreground
-            indices = np.where((scores[0, :] > score_threshold) & (labels[0, :] == 1))[0]
+            mask = scores[0, :] > score_threshold
 
             # select those scores
-            scores = scores[0][indices]
+            bboxes = bboxes[0][mask]
+            scores = scores[0][mask]
+            labels = labels[0][mask]
 
             # find the order with which to sort the scores
             scores_sort = np.argsort(-scores)[:max_detections]
 
             # select detections
-            image_bboxes = bboxes[0, indices[scores_sort], :]
+            image_bboxes = bboxes[scores_sort, :]
             image_scores = scores[scores_sort]
-            image_labels = labels[0, indices[scores_sort]]
+            image_labels = labels[scores_sort]
 
-            image_detections = np.concatenate([image_bboxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+            # print(image_bboxes[:10])
+            # print(image_scores[:10])
+            # print(image_labels[:10])
 
-            gt_boxes = batch_gt_boxes.cpu().numpy()[0, :, :4]
+            image_detections = np.concatenate([image_bboxes, np.expand_dims(image_scores, axis=1)], axis=1)
+
+            gt_boxes  = batch_gt_boxes.cpu().numpy()[0, :, :4]
             gt_labels = batch_labels.cpu().numpy()[0, :]
-            gt_boxes = gt_boxes[gt_labels != -1, :] # for rpn, all boxes are foreground
-            all_annotations[i][0] = gt_boxes.copy()
 
-            for label_idx in range(1):
-                # only deal with label 1
-                all_detections[i][label_idx] = image_detections[image_detections[:, -1] == label_idx + 1, :-1]
+            for label_idx in range(1, num_classes + 1):
+                all_annotations[i][label_idx - 1] = gt_boxes[gt_labels == label_idx, :] #gt_boxes.copy()
+                all_detections[i][label_idx - 1]  = image_detections[image_labels == label_idx, :]
 
-            test_loss += rpn_regression_loss + rpn_classification_loss
-            reg_loss += rpn_regression_loss
-            cls_loss += rpn_classification_loss
+                # print('label',label_idx, 'all_annotations', all_annotations[i][label_idx - 1].astype(np.int32))
+                # print('label',label_idx, 'all_detections', all_detections[i][label_idx - 1].astype(np.int32))
+
+            if verbose:
+                image = data.cpu().numpy()[0, :, :, :]
+                image = ((np.transpose(image, (1, 2, 0)) + 1) * 127).astype(np.uint8)
+                for bbox, score in zip(bboxes, scores):
+                    if score > 0.1:
+                        image = cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color=(0, 0, 255), thickness=2)
+                cv2.imshow('image', image)
+                k = cv2.waitKey()
+                if k == ord('q'):
+                    exit()
+                elif k == ord('c'):
+                    verbose = False
+
+            test_loss += rpn_regression_loss + rpn_classification_loss + regression_loss + classification_loss
+            rpn_reg_loss += rpn_regression_loss
+            rpn_cls_loss += rpn_classification_loss
+            reg_loss += regression_loss
+            cls_loss += classification_loss
 
         average_precisions = {}
         # process detections and annotations
-        for label_idx in range(1):
+        for label_idx in range(1, num_classes+1):
             # only deal with label 1
             false_positives = np.zeros((0,))
             true_positives = np.zeros((0,))
@@ -137,8 +160,8 @@ def EvaluateRPN(model, data_loader, device, iou_threshold=0.3, score_threshold=0
             num_annotations = 0.0
 
             for i in range(len(random_valid_idx_list)):
-                detections = all_detections[i][label_idx]
-                annotations = all_annotations[i][label_idx]
+                detections = all_detections[i][label_idx - 1]
+                annotations = all_annotations[i][label_idx - 1]
                 num_annotations += annotations.shape[0]
                 detected_annotations = []
 
@@ -184,10 +207,11 @@ def EvaluateRPN(model, data_loader, device, iou_threshold=0.3, score_threshold=0
             average_precision = _compute_ap(recall, precision)
             average_precisions[label_idx] = average_precision, num_annotations
 
-        rpn_average_precision = average_precisions[0][0]
 
-        test_loss /= len(random_valid_idx_list)
-        reg_loss /= len(random_valid_idx_list)
-        cls_loss /= len(random_valid_idx_list)
+        test_loss    /= len(random_valid_idx_list)
+        rpn_reg_loss /= len(random_valid_idx_list)
+        rpn_cls_loss /= len(random_valid_idx_list)
+        reg_loss     /= len(random_valid_idx_list)
+        cls_loss     /= len(random_valid_idx_list)
 
-        return rpn_average_precision, test_loss.item(), reg_loss.item(), cls_loss.item()
+        return average_precisions, test_loss.item(), rpn_reg_loss.item(), rpn_cls_loss.item(), reg_loss.item(), cls_loss.item()

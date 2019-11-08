@@ -11,11 +11,23 @@ from .DetectionDataGenerator import DetectionDataGenerator
 
 class CocoGenerator(DetectionDataGenerator):
     def __init__(self, data_dir, annotation_file_path, **kwargs):
+        super(CocoGenerator, self).__init__(**kwargs)
         self.data_dir = data_dir
         self.annotation_file_path = annotation_file_path
         self.coco = COCO(self.annotation_file_path)
-        self.data_path_list, self.annotations_list, self._class_idx2name, self._class_name2idx = self._parse_data_from_coco()
-        super(CocoGenerator, self).__init__(**kwargs)
+
+        cats = self.coco.loadCats(self.coco.getCatIds()[10:12])
+        self.class_names = tuple(['__background__'] + [c['name'] for c in cats])
+
+        self._class_name2idx = dict(list(zip(self.class_names, list(range(len(self.class_names))))))
+        self._class_idx2name = dict(list(zip(list(range(len(self.class_names))), self.class_names)))
+
+        self.name2coco_cat_id = dict(list(zip([c['name'] for c in cats], self.coco.getCatIds()[10:12])))
+        self.coco_cat_id2name = dict(list(zip(self.coco.getCatIds()[10:12], [c['name'] for c in cats])))
+
+        print('initial classes:', self._class_idx2name)
+
+        self.data_path_list, self.annotations_list = self._parse_data_from_coco()
 
     def __len__(self):
         return len(self.data_path_list)
@@ -25,8 +37,7 @@ class CocoGenerator(DetectionDataGenerator):
         image_infos = [self.coco.loadImgs(img_id)[0] for img_id in sorted(self.coco.getImgIds())]
         image_path_list = [] # [os.path.join(self.data_dir, image_info['file_name']) for image_info in image_infos]
         annotations_list = []
-        class_idx2name = {}
-        class_name2idx = {}
+
         for image_info in image_infos:
             annotations = {
                 'class_idxes': [],
@@ -36,10 +47,15 @@ class CocoGenerator(DetectionDataGenerator):
             coco_annotations = self.coco.loadAnns(coco_annotationIds)
             if len(coco_annotations) == 0:
                 continue
-            image_path_list.append(os.path.join(self.data_dir, image_info['file_name']))
+
             for coco_annotation in coco_annotations:
                 if coco_annotation['bbox'][2] < 1 or coco_annotation['bbox'][3] < 1:
                     # skip some invalid annotation
+                    continue
+                # class_idx  = coco_annotation['category_id']
+                class_name = self.coco.loadCats(ids=coco_annotation['category_id'])[0]['name']
+
+                if class_name not in self._class_name2idx:
                     continue
 
                 x1 = coco_annotation['bbox'][0]
@@ -47,20 +63,17 @@ class CocoGenerator(DetectionDataGenerator):
                 x2 = x1 + coco_annotation['bbox'][2]
                 y2 = y1 + coco_annotation['bbox'][3]
 
-                class_idx = coco_annotation['category_id'] - 1
-                class_name = self.coco.loadCats(ids=coco_annotation['category_id'])[0]['name']
-                if class_idx not in class_idx2name:
-                    class_idx2name[class_idx] = class_name
-
-                if class_name not in class_name2idx:
-                    class_name2idx[class_name] = class_idx
-
+                class_idx = self._class_name2idx[class_name]
                 annotations['class_idxes'].append(class_idx)
                 annotations['bboxes'].append([x1, y1, x2, y2])
-            annotations_list.append(annotations)
+
+            if len(annotations['bboxes']):
+                annotations_list.append(annotations)
+                image_path_list.append(os.path.join(self.data_dir, image_info['file_name']))
 
         print('data parsed')
-        return image_path_list, annotations_list, class_idx2name, class_name2idx
+        # print(class_idx2name)
+        return image_path_list, annotations_list
 
     def load_data(self, data_idx):
         img = cv2.imread(self.data_path_list[data_idx])

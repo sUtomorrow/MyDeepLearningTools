@@ -4,222 +4,64 @@
 # @File     : rpn
 
 import torch
-from .utils.losses import smooth_l1, cross_entropy_loss
-from .utils.anchors import get_anchors, anchor_shift
+import torch.nn.functional as F
+from .utils.losses import smooth_l1, cross_entropy_loss, focal_loss
+from .utils.extensions import _C
+from .utils.anchors import _bbox_transform_inv, AnchorTargetLayer
 
+def get_nms_bboxes(bboxes, classifications, bbox_tags, max_outputs, nms_threshold=0.5):
+    with torch.no_grad():
 
-def _bbox_transform(anchors, gt_boxes):
-    """
-    transform gt boxes to anchor regression targets
-    :param anchors : [x1, y1, x2, y2]
-    :param gt_boxes: [bx1, by1, bx2, by2]
-    ax = (x1 + x2) / 2
-    ay = (y1 + y2) / 2
-    aw = x2 - x1
-    ah = y2 - y1
+        # print('bboxes.size()', bboxes.size())
+        # print('scores.size()', scores.size())
+        # print('labels.size()', labels.size())
 
-    bx = (bx1 + bx2) / 2
-    by = (by1 + by2) / 2
-    bw = bx2 - bx1
-    bh = by2 - by1
-
-    tx = (bx - ax) / aw
-    ty = (by - ay) / ah
-    tw = log(bw / aw)
-    th = log(bh / ah)
-
-    return [tx, ty, tw, th]
-    """
-    ax = (anchors[:, 0] + anchors[:, 2]) / 2
-    ay = (anchors[:, 1] + anchors[:, 3]) / 2
-    aw = anchors[:, 2] - anchors[:, 0]
-    ah = anchors[:, 3] - anchors[:, 1]
-
-    bx = (gt_boxes[:, 0] + gt_boxes[:, 2]) / 2
-    by = (gt_boxes[:, 1] + gt_boxes[:, 3]) / 2
-    bw = gt_boxes[:, 2] - gt_boxes[:, 0]
-    bh = gt_boxes[:, 3] - gt_boxes[:, 1]
-
-    tx = (bx - ax) / aw
-    ty = (by - ay) / ah
-    tw = torch.log(bw / aw)
-    th = torch.log(bh / ah)
-
-    return torch.stack([tx, ty, tw, th], dim=-1)
-
-def _bbox_transform_inv(anchors, regressions):
-    """
-    transform regression back to bbox by anchors
-    :param anchors:     [x1, y1, x2, y2]
-    :param regressions: [tx, ty, tw, th]
-    ax = (x1 + x2) / 2
-    ay = (y1 + y2) / 2
-    aw = x2 - x1
-    ah = y2 - y1
-
-    bx = ax + tx * aw
-    by = ay + ty * ah
-    bw = aw * exp(tw)
-    bh = ah * exp(th)
-
-    bx1 = bx - bw / 2
-    by1 = by - bh / 2
-    bx2 = bx1 + bw
-    by2 = by1 + bh
-    return [bx1, by1, bx2, by2]
-    """
-    # TODO: coordinate of axis error
-    anchor_x = (anchors[:, :, 2] + anchors[:, :, 0]) / 2
-    anchor_y = (anchors[:, :, 3] + anchors[:, :, 1]) / 2
-
-    anchor_w = anchors[:, :, 2] - anchors[:, :, 0]
-    anchor_h = anchors[:, :, 3] - anchors[:, :, 1]
-
-    bbox_x = anchor_x + regressions[:, :, 0] * anchor_w
-    bbox_y = anchor_y + regressions[:, :, 1] * anchor_h
-    bbox_w = anchor_w * torch.exp(regressions[:, :, 2])
-    bbox_h = anchor_h * torch.exp(regressions[:, :, 3])
-
-    bbox_x1 = bbox_x - bbox_w / 2
-    bbox_y1 = bbox_y - bbox_h / 2
-    bbox_x2 = bbox_x1 + bbox_w
-    bbox_y2 = bbox_y1 + bbox_h
-
-    return torch.stack([bbox_x1, bbox_y1, bbox_x2, bbox_y2], dim=-1)
-
-
-def overlaps(bboxes1, bboxes2):
-    """
-    :param bboxes1: [x1, y1, x2, y2] with shape:(M, 4)
-    :param bboxes2: [x1, y1, x2, y2] with shape:(N, 4)
-    :return: overlaps with shape: (M, N)
-    """
-    M = bboxes1.size(0)
-    N = bboxes2.size(0)
-
-    # reshape for broadcast
-    bboxes1 = bboxes1.unsqueeze(1).repeat(1, N, 1)
-    bboxes2 = bboxes2.unsqueeze(0).repeat(M, 1, 1)
-
-    # print('bboxes1.size', bboxes1.size())
-    # print('bboxes2.size', bboxes2.size())
-
-    inter_x1 = torch.max(bboxes1[:, :, 0], bboxes2[:, :, 0])
-    inter_x2 = torch.min(bboxes1[:, :, 2], bboxes2[:, :, 2])
-
-    inter_y1 = torch.max(bboxes1[:, :, 1], bboxes2[:, :, 1])
-    inter_y2 = torch.min(bboxes1[:, :, 3], bboxes2[:, :, 3])
-
-    inter_w = inter_x2 - inter_x1
-    inter_w[inter_w < 0] = 0
-    inter_h = inter_y2 - inter_y1
-    inter_h[inter_h < 0] = 0
-
-    inter_area = inter_h * inter_w
-
-    w1 = bboxes1[:, :, 2] - bboxes1[:, :, 0]
-    w1[w1 < 0] = 0
-    h1 = bboxes1[:, :, 3] - bboxes1[:, :, 1]
-    h1[h1 < 0] = 0
-
-    w2 = bboxes2[:, :, 2] - bboxes2[:, :, 0]
-    w2[w2 < 0] = 0
-    h2 = bboxes2[:, :, 3] - bboxes2[:, :, 1]
-    h2[h2 < 0] = 0
-
-    area1 = w1 * h1
-    area2 = w2 * h2
-
-    return inter_area / (area1 + area2 - inter_area)
-
-
-class AnchorTargetLayer(torch.nn.Module):
-    def __init__(self, positive_anchor_threshold, negative_anchor_threshold, max_positive_anchor, max_negative_anchor_ratio):
-        """
-        compute the rpn target by anchor and feature map
-
-        :param positive_anchor_threshold: iou threshold to decide an anchor is positive(greater or equal)
-        :param negative_anchor_threshold: iou threshold to decide an anchor is negative(less or equal)
-        :param max_positive_anchor     : max number of positive anchor in one image, if None: no limit
-        :param max_negative_anchor_ratio: max ratio, negative anchor number : positive anchor number, if None: no limit
-        """
-        super(AnchorTargetLayer, self).__init__()
-
-        self.positive_anchor_threshold = positive_anchor_threshold
-        self.negative_anchor_threshold = negative_anchor_threshold
-
-        self.max_positive_anchor       = max_positive_anchor
-        self.max_negative_anchor_ratio = max_negative_anchor_ratio
-
-    def forward(self, *input):
-        """
-        :param input:
-            anchors        : with shape (A, 4), (x1, y1, x2, y2), the anchor for each point
-            batch_gt_boxes : with shape (BatchSize, max_target_number, 4), (x1, y1, x2, y2)
-            batch_labels   : with shape (BatchSize, max_target_number), contain the label id for boxes
-        :return: [(B, A, 5), (B, A, 2)] regression target and classification target
-        """
-        anchors, batch_gt_boxes, batch_labels = input
-        #TODO: to compute the target for rpn
-        batch_size = batch_gt_boxes.size(0)
-        regression_target     = torch.zeros((batch_size, anchors.size(0), 5), device=batch_gt_boxes.get_device()) # [tx, ty, tw, th, weight]
-        classification_target = torch.zeros((batch_size, anchors.size(0), 2), dtype=torch.long, device=batch_gt_boxes.get_device()) # [background, foreground, weight]
+        batch_size      = bboxes.size(0)
+        proposal_bboxes = torch.zeros(batch_size, max_outputs, 4).type_as(bboxes)
+        proposal_scores = torch.ones(batch_size, max_outputs).type_as(classifications) * -1
+        proposal_labels = torch.ones(batch_size, max_outputs).type_as(bboxes).long() * -1
         for batch_idx in range(batch_size):
-            # compute target for each batch data
-            gt_boxes = batch_gt_boxes[batch_idx]
-            labels   = batch_labels[batch_idx]
+            b = bboxes[batch_idx, :, :]
+            c = classifications[batch_idx, :, :]
+            if bbox_tags is not None:
+                b = b[bbox_tags[batch_idx]]
+                c = c[bbox_tags[batch_idx]]
 
-            # filter the padding label and box
-            indices  = labels >= 0
-            gt_boxes = gt_boxes[indices]
-            labels   = labels[indices]
-
-            gt_box_number = labels.size(0)
-
-            if gt_box_number == 0:
-                # skip if there is no target
+            if c.size(0) == 0:
                 continue
-            # print('anchors.size', anchors.size())
-            # print('gt_boxes.size', gt_boxes.size())
-            ious = overlaps(anchors, gt_boxes)
 
-            max_anchor_ious, anchor_max_iou_gt_box_indices = torch.max(ious, 1)
+            classifications_softmax = F.softmax(c, dim=1)
+            # print('classifications_softmax.size()', classifications_softmax.size())
+            s, l = torch.max(classifications_softmax, dim=1)
 
-            positive_anchor_mask    = max_anchor_ious >= self.positive_anchor_threshold
-            negative_anchor_mask    = max_anchor_ious <= self.negative_anchor_threshold
-            positive_anchor_indices = torch.nonzero(positive_anchor_mask)
-            negative_anchor_indices = torch.nonzero(negative_anchor_mask)
-            # ignore_anchor_indices   = torch.nonzero(~(positive_anchor_mask | negative_anchor_mask))
+            mask = l > 0
+            b = b[mask, :]
+            s = s[mask]
+            l = l[mask]
 
-            if self.max_positive_anchor:
-                if positive_anchor_indices.size(0) > self.max_positive_anchor:
-                    # random choice to filter the positive anchor with max positive number
-                    indices = torch.randperm(positive_anchor_indices.size(0))
-                    positive_anchor_indices = positive_anchor_indices[indices[:self.max_positive_anchor]]
+            if nms_threshold is None:
+                sorted_indices = torch.argsort(s, dim=0, descending=True)
+                # sorted_indices = sorted_indices[:2 * max_outputs]
+                b = b[sorted_indices, :]
+                s = s[sorted_indices]
+                l = l[sorted_indices]
+            else:
+                indices = _C.nms(b, s, nms_threshold)
 
-            if self.max_negative_anchor_ratio:
-                max_negative_anchors = int(self.max_negative_anchor_ratio * len(positive_anchor_indices))
+                b = b[indices, :]
+                s = s[indices]
+                l = l[indices]
 
-                if negative_anchor_indices.size(0) > max_negative_anchors:
-                    # random choice to filter the negative anchor with max negative number
-                    indices = torch.randperm(negative_anchor_indices.size(0))
-                    negative_anchor_indices = negative_anchor_indices[indices[:max_negative_anchors]]
-
-            # compute all anchor regression targets
-            anchor_regression_target = _bbox_transform(anchors, gt_boxes[anchor_max_iou_gt_box_indices])
-
-            # assign weight for anchors, default 0 for ignore this anchor
-            regression_target[batch_idx, positive_anchor_indices, -1] = 1
-
-            classification_target[batch_idx, positive_anchor_indices, -1] = 1
-            classification_target[batch_idx, negative_anchor_indices, -1] = 1
-
-            # assign regression target and classification target
-            regression_target[batch_idx, positive_anchor_indices, :-1] = anchor_regression_target[positive_anchor_indices, :]
-            classification_target[batch_idx, positive_anchor_indices, 0] = 1  # rpn use label idx 1 as classification target for foreground
-            # classification_target[batch_idx, negative_anchor_indices, 0] = 0 # do not need assign value
-        return [regression_target, classification_target]
-        
+            proposal_num = l.size(0)
+            if proposal_num < max_outputs:
+                proposal_bboxes[batch_idx, :proposal_num, :] = b
+                proposal_scores[batch_idx, :proposal_num]    = s
+                proposal_labels[batch_idx, :proposal_num]    = l
+            else:
+                proposal_bboxes[batch_idx, :, :] = b[:max_outputs, :]
+                proposal_scores[batch_idx, :]    = s[:max_outputs]
+                proposal_labels[batch_idx, :]    = l[:max_outputs]
+        return proposal_bboxes, proposal_scores, proposal_labels
 
 class RPN(torch.nn.Module):
     def __init__(self, in_channel, filters, anchor_num,
@@ -231,7 +73,7 @@ class RPN(torch.nn.Module):
         :param anchor_num:                amount of anchors for each point
         :param positive_anchor_threshold: iou threshold to decide an anchor is positive(greater or equal)
         :param negative_anchor_threshold: iou threshold to decide an anchor is negative(less or equal)
-        :param max_positive_anchor     : max number of positive anchor in one image, if None: no limit
+        :param max_positive_anchor      : max number of positive anchor in one image, if None: no limit
         :param max_negative_anchor_ratio: max ratio, negative anchor number : positive anchor number, if None: no limit
         """
         super(RPN, self).__init__()
@@ -240,13 +82,13 @@ class RPN(torch.nn.Module):
         self.relu = torch.nn.ReLU(inplace=True)
         # background and foreground
         self.classification = torch.nn.Conv2d(filters, self.anchor_num * 2, kernel_size=(1, 1), padding=0, stride=(1, 1))
-        # self.softmax = torch.nn.Softmax(dim=1)
         # 4 values for each anchor
         self.regression = torch.nn.Conv2d(filters, self.anchor_num * 4, kernel_size=(1, 1), padding=0, stride=(1, 1))
         self.anchor_target_layer = AnchorTargetLayer(positive_anchor_threshold,
                                                      negative_anchor_threshold,
                                                      max_positive_anchor,
                                                      max_negative_anchor_ratio)
+        self.max_proposal = max_positive_anchor
 
     def forward(self, *input):
         """
@@ -257,7 +99,7 @@ class RPN(torch.nn.Module):
         if self.training:
             feature, anchors, batch_gt_boxes, batch_labels = input
         else:
-            batch_gt_boxes = batch_labels = None
+            batch_gt_boxes   = batch_labels = None
             feature, anchors = input[:2]
         l = self.conv1(feature)
         l = self.relu(l)
@@ -265,14 +107,16 @@ class RPN(torch.nn.Module):
         regressions     = self.regression(l)
         
         # regression     = self.relu(regression)
-        regressions = regressions.permute(0, 2, 3, 1).contiguous().view(regressions.size(0), -1, 4)
+        regressions     = regressions.permute(0, 2, 3, 1).contiguous().view(regressions.size(0), -1, 4)
         classifications = classifications.permute(0, 2, 3, 1).contiguous().view(classifications.size(0), -1, 2)
-        bboxes = _bbox_transform_inv(anchors.unsqueeze(0), regressions)
+        bboxes          = _bbox_transform_inv(anchors.unsqueeze(0), regressions)
+
+        proposal_bboxes, proposal_scores, proposal_labels = get_nms_bboxes(bboxes, classifications, None, self.max_proposal, 0.7)
 
         if self.training:
             regression_target, classification_target = self.anchor_target_layer(anchors, batch_gt_boxes, batch_labels)
-            regression_loss     = smooth_l1(regressions, regression_target)
-            classification_loss = cross_entropy_loss(classifications, classification_target)
-            return bboxes, classifications, regression_loss, classification_loss
+            regression_loss     = smooth_l1(regressions, regression_target, 1)
+            classification_loss = focal_loss(classifications, classification_target, 2)
+            return proposal_bboxes, proposal_scores, regression_loss, classification_loss
         else:
-            return bboxes, classifications
+            return proposal_bboxes, proposal_scores
